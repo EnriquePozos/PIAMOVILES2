@@ -1,5 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Colores originales -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- Colores del diseño "El sazón de Toto" -->
+    <color name="primary_blue">#CAEDFF</color>
+    <color name="background_light">#F5F9FF</color>
+    <color name="button_blue">#4A7C92</color>
+    <color name="text_dark">#1E1E1E</color>
+    <color name="text_medium">#333333</color>
+    <color name="text_hint">#B3B3B3</color>
+    <color name="card_background">#FFFFFF</color>
+    <color name="border_light">#E0E0E0</color>
+    <color name="icon_background">#F0F0F0</color>
+
+    <!-- Estados de botones -->
+    <color name="button_pressed">#3A6C82</color>
+    <color name="button_disabled">#A0A0A0</color>
 </resources>

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:background="#CAEDFF"
+    android:padding="24dp">
+
+    <!-- Botón regresar (visible solo cuando sea necesario) -->
+    <ImageView
+        android:id="@+id/btnBack"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginEnd="16dp"
+        android:src="@drawable/ic_arrow_back"
+        android:contentDescription="Regresar"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:visibility="gone" />
+
+    <!-- Logo de la app -->
+    <ImageView
+        android:id="@+id/ivLogo"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginEnd="12dp"
+        android:src="@mipmap/ic_launcher"
+        android:contentDescription="Logo" />
+
+    <!-- Título de la app -->
+    <TextView
+        android:id="@+id/tvAppTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="El sazón de Toto"
+        android:textColor="#000000"
+        android:textSize="24sp"
+        android:textStyle="normal" />
+
+    <!-- Espaciador flexible -->
+    <View
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <!-- Icono de perfil (visible solo cuando sea necesario) -->
+    <ImageView
+        android:id="@+id/ivProfileIcon"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:src="@mipmap/ic_launcher"
+        android:background="@drawable/circle_background"
+        android:contentDescription="Perfil de usuario"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone" />
+
+</LinearLayout>

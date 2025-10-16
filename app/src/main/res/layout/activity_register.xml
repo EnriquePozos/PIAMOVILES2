@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F5F9FF"
+    android:orientation="vertical"
+    tools:context=".RegisterActivity">
+
+    <!-- Header reutilizable -->
+    <include
+        android:id="@+id/headerApp"
+        layout="@layout/header_app" />
+
+    <!-- Formulario de registro en ScrollView -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <!-- Campo Nombre -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:hint="Nombre"
+                app:boxStrokeWidth="1dp"
+                app:boxStrokeColor="#E0E0E0"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etName"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textPersonName"
+                    android:textColor="#333333"
+                    android:textColorHint="#B3B3B3" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Campo Apellido paterno -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:hint="Apellido paterno"
+                app:boxStrokeWidth="1dp"
+                app:boxStrokeColor="#E0E0E0"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etLastNamePaternal"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textPersonName"
+                    android:textColor="#333333"
+                    android:textColorHint="#B3B3B3" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Campo Apellido materno -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:hint="Apellido materno"
+                app:boxStrokeWidth="1dp"
+                app:boxStrokeColor="#E0E0E0"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etLastNameMaternal"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textPersonName"
+                    android:textColor="#333333"
+                    android:textColorHint="#B3B3B3" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Campo Correo electrónico -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:hint="Correo electrónico"
+                app:boxStrokeWidth="1dp"
+                app:boxStrokeColor="#E0E0E0"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etEmail"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textEmailAddress"
+                    android:textColor="#333333"
+                    android:textColorHint="#B3B3B3" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Campo Contraseña -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:hint="Contraseña"
+                app:boxStrokeWidth="1dp"
+                app:boxStrokeColor="#E0E0E0"
+                app:passwordToggleEnabled="true"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etPassword"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textPassword"
+                    android:textColor="#333333"
+                    android:textColorHint="#B3B3B3" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Campo Teléfono (opcional) -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:hint="Teléfono*"
+                app:boxStrokeWidth="1dp"
+                app:boxStrokeColor="#E0E0E0"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etPhone"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="phone"
+                    android:textColor="#333333"
+                    android:textColorHint="#B3B3B3" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Campo Dirección (opcional) -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp"
+                android:hint="Dirección*"
+                app:boxStrokeWidth="1dp"
+                app:boxStrokeColor="#E0E0E0"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etAddress"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textPostalAddress"
+                    android:textColor="#333333"
+                    android:textColorHint="#B3B3B3" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Sección de imagen de perfil -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Icono de perfil"
+                android:textColor="#1E1E1E"
+                android:textSize="16sp"
+                android:layout_marginBottom="8dp" />
+
+            <ImageView
+                android:id="@+id/ivProfileImage"
+                android:layout_width="120dp"
+                android:layout_height="120dp"
+                android:layout_marginBottom="24dp"
+                android:background="#E0E0E0"
+                android:scaleType="centerCrop"
+                android:src="@drawable/ic_add_photo"
+                android:clickable="true"
+                android:focusable="true"
+                android:contentDescription="Seleccionar imagen de perfil" />
+
+            <!-- Campo Alias -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="32dp"
+                android:hint="Alias"
+                app:boxStrokeWidth="1dp"
+                app:boxStrokeColor="#E0E0E0"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etAlias"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="text"
+                    android:textColor="#333333"
+                    android:textColorHint="#B3B3B3" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Botón Registrarse -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnRegister"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginBottom="24dp"
+                android:text="Registrarse"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:backgroundTint="#4A7C92"
+                app:cornerRadius="8dp"
+                app:strokeWidth="0dp" />
+
+        </LinearLayout>
+
+    </ScrollView>
+
+</LinearLayout>

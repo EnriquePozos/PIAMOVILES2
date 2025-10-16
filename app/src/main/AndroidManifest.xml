@@ -12,6 +12,21 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.PIAMOVILES2">
         <activity
+            android:name=".FeedActivity"
+            android:exported="false" />
+        <activity
+            android:name=".HeaderUtils.kt"
+            android:exported="false"
+            android:label="@string/title_activity_header_utils.kt"
+            android:theme="@style/Theme.PIAMOVILES2" />
+        <activity
+            android:name=".HeaderUtils"
+            android:exported="false" />
+        <activity
+            android:name=".RegisterActivity"
+            android:exported="false"
+            android:theme="@style/Theme.PIAMOVILES2" />
+        <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
