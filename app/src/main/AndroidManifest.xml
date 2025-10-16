@@ -10,31 +10,29 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.PIAMOVILES2">
-        <activity
-            android:name=".FeedActivity"
-            android:exported="false" />
-        <activity
-            android:name=".HeaderUtils.kt"
-            android:exported="false"
-            android:label="@string/title_activity_header_utils.kt"
-            android:theme="@style/Theme.PIAMOVILES2" />
-        <activity
-            android:name=".HeaderUtils"
-            android:exported="false" />
-        <activity
-            android:name=".RegisterActivity"
-            android:exported="false"
-            android:theme="@style/Theme.PIAMOVILES2" />
+        android:theme="@style/Theme.PIAMOVILES2"
+        tools:targetApi="31">
+
+        <!-- MainActivity - Pantalla de Login (LAUNCHER) -->
         <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- RegisterActivity - Pantalla de Registro -->
+        <activity
+            android:name=".RegisterActivity"
+            android:exported="false" />
+
+        <!-- FeedActivity - Pantalla principal del Feed -->
+        <activity
+            android:name=".FeedActivity"
+            android:exported="false" />
+
     </application>
 
 </manifest>
