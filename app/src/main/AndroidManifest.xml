@@ -2,6 +2,17 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Permisos para cámara y almacenamiento -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
+    <!-- Declarar que la app usa cámara (opcional) -->
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -22,28 +33,49 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity> <!-- RegisterActivity - Pantalla de Registro -->
+        </activity>
+
+        <!-- RegisterActivity - Pantalla de Registro -->
         <activity
             android:name=".RegisterActivity"
-            android:exported="false" /> <!-- FeedActivity - Pantalla principal del Feed -->
+            android:exported="false" />
+
+        <!-- FeedActivity - Pantalla principal del Feed -->
         <activity
             android:name=".FeedActivity"
-            android:exported="false" /> <!-- PostDetailActivity - Pantalla de detalle de publicación -->
+            android:exported="false" />
+
+        <!-- PostDetailActivity - Pantalla de detalle de publicación -->
         <activity
             android:name=".PostDetailActivity"
-            android:exported="false" /> <!-- ProfileActivity - Pantalla de Perfil -->
+            android:exported="false" />
+
+        <!-- ProfileActivity - Pantalla de Perfil -->
         <activity
             android:name=".ProfileActivity"
-            android:exported="false" /> <!-- EditProfileActivity - Pantalla de Editar Perfil -->
+            android:exported="false" />
+
+        <!-- EditProfileActivity - Pantalla de edición de Perfil (Reutiliza el registro) -->
         <activity
             android:name=".EditProfileActivity"
-            android:exported="false" /> <!-- FavoritesActivity - Pantalla de Favoritos -->
+            android:exported="false" />
+
+        <!-- FavoritesActivity - Pantalla de Favoritos -->
         <activity
             android:name=".FavoritesActivity"
-            android:exported="false" /> <!-- DraftsActivity - Pantalla de Borradores -->
+            android:exported="false" />
+
+        <!-- DraftsActivity - Pantalla de Borradores -->
         <activity
             android:name=".DraftsActivity"
             android:exported="false" />
+
+        <!-- CreatePostActivity - Pantalla de Crear/Editar Recetas -->
+        <activity
+            android:name=".CreatePostActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
     </application>
 
 </manifest>

@@ -63,10 +63,10 @@ class ProfileActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-        // Agregar receta
+        // Agregar receta - ✅ CONECTADO A CreatePostActivity
         binding.btnAddRecipe.setOnClickListener {
-            Toast.makeText(this, "Agregar receta (próximamente)", Toast.LENGTH_SHORT).show()
-            // TODO: Navegar a CreatePostActivity
+            val intent = Intent(this, CreatePostActivity::class.java)
+            startActivity(intent)
         }
 
         // Ver borradores - ✅ CONECTADO A DraftsActivity
@@ -104,5 +104,12 @@ class ProfileActivity : AppCompatActivity() {
         }
 
         postAdapter.submitList(userPosts.toList())
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Recargar posts cuando regrese a la pantalla
+        // (en caso de que hayan agregado nuevas recetas)
+        loadUserPosts()
     }
 }

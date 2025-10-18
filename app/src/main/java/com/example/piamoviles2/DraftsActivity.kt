@@ -47,10 +47,10 @@ class DraftsActivity : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
-        // Botón para crear nueva receta
+        // Botón para crear nueva receta - ✅ CONECTADO A CreatePostActivity
         binding.btnCreateNewRecipe.setOnClickListener {
-            Toast.makeText(this, "Crear nueva receta (próximamente)", Toast.LENGTH_SHORT).show()
-            // TODO: Navegar a CreatePostActivity
+            val intent = Intent(this, CreatePostActivity::class.java)
+            startActivity(intent)
         }
     }
 
@@ -86,11 +86,10 @@ class DraftsActivity : AppCompatActivity() {
     }
 
     private fun editDraft(draft: Post) {
-        Toast.makeText(this, "Editar borrador: ${draft.title}", Toast.LENGTH_SHORT).show()
-        // TODO: Navegar a CreatePostActivity con el ID del borrador para editarlo
-        // val intent = Intent(this, CreatePostActivity::class.java)
-        // intent.putExtra(CreatePostActivity.EXTRA_DRAFT_ID, draft.id)
-        // startActivity(intent)
+        // ✅ CONECTADO A CreatePostActivity con ID del borrador
+        val intent = Intent(this, CreatePostActivity::class.java)
+        intent.putExtra(CreatePostActivity.EXTRA_DRAFT_ID, draft.id)
+        startActivity(intent)
     }
 
     private fun showDeleteDraftDialog(draft: Post) {
