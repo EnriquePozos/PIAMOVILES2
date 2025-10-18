@@ -29,7 +29,7 @@
             android:background="@drawable/search_background"
             app:iconifiedByDefault="false"
             app:queryHint="Search"
-            app:searchIcon="@drawable/ic_arrow_back"
+            app:searchIcon="@drawable/baseline_search_24"
             app:closeIcon="@drawable/ic_cancel" />
         <!-- "Cambiar por cancel por clear"-->
 

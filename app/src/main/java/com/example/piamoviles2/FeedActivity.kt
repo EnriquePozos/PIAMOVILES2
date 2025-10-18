@@ -42,6 +42,9 @@ class FeedActivity : AppCompatActivity() {
             // Navegar a detalle de la publicación
             Toast.makeText(this, "Ver detalle: ${post.title}", Toast.LENGTH_SHORT).show()
             // TODO: Navegar a PostDetailActivity
+            val intent = Intent(this, PostDetailActivity::class.java)
+            intent.putExtra(PostDetailActivity.EXTRA_POST_ID, post.id)
+            startActivity(intent)
         }
 
         binding.rvPosts.apply {

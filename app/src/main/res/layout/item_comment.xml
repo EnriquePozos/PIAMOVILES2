@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:layout_marginBottom="16dp">
+
+    <!-- Comentario principal -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#FFFFFF"
+        android:padding="12dp">
+
+        <!-- Nombre del usuario -->
+        <TextView
+            android:id="@+id/tvCommentUser"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:textColor="#000000"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            tools:text="Enrique Pozos" />
+
+        <!-- Texto del comentario -->
+        <TextView
+            android:id="@+id/tvCommentText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:textColor="#333333"
+            android:textSize="14sp"
+            android:lineSpacingExtra="2dp"
+            tools:text="lorem ipsum, quia dolor sit, amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt, ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisl ut aliquid ex ea" />
+
+        <!-- Botones Like/Dislike del comentario principal -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="end">
+
+            <!-- Botón Like comentario -->
+            <ImageButton
+                android:id="@+id/btnCommentLike"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_marginEnd="8dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_like"
+                android:rotation="0"
+                android:contentDescription="Me gusta comentario"
+                app:tint="#666666" />
+
+            <!-- Botón Dislike comentario -->
+            <ImageButton
+                android:id="@+id/btnCommentDislike"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_dislike"
+                android:rotation="0"
+                android:contentDescription="No me gusta comentario"
+                app:tint="#666666" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Respuestas anidadas -->
+    <LinearLayout
+        android:id="@+id/layoutReplies"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="8dp">
+
+        <!-- Respuesta individual (se repetirá dinámicamente) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#F8F8F8"
+            android:padding="12dp"
+            android:layout_marginBottom="8dp">
+
+            <!-- Usuario que respondió -->
+            <TextView
+                android:id="@+id/tvReplyUser"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:textColor="#000000"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                tools:text="Raul García 32 respondió:" />
+
+            <!-- Texto de la respuesta -->
+            <TextView
+                android:id="@+id/tvReplyText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:textColor="#333333"
+                android:textSize="14sp"
+                android:lineSpacingExtra="2dp"
+                tools:text="lorem ipsum, quia dolor sit, amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt, ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisl ut aliquid ex ea" />
+
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Campo para responder al comentario principal -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="12dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Responder"
+            android:textColor="#333333"
+            android:textSize="14sp"
+            android:layout_marginBottom="8dp" />
+
+        <EditText
+            android:id="@+id/etReply"
+            android:layout_width="match_parent"
+            android:layout_height="80dp"
+            android:background="@drawable/edit_text_background"
+            android:hint="Value"
+            android:textSize="14sp"
+            android:textColor="#333333"
+            android:textColorHint="#B3B3B3"
+            android:gravity="top|start"
+            android:inputType="textMultiLine|textCapSentences"
+            android:layout_marginBottom="8dp" />
+
+        <Button
+            android:id="@+id/btnResponder"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="Responder"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:backgroundTint="#4A7C92"
+            android:layout_gravity="start" />
+
+    </LinearLayout>
+
+</LinearLayout>
