@@ -69,10 +69,10 @@ class ProfileActivity : AppCompatActivity() {
             // TODO: Navegar a CreatePostActivity
         }
 
-        // Ver borradores
+        // Ver borradores - ✅ CONECTADO A DraftsActivity
         binding.btnViewDrafts.setOnClickListener {
-            Toast.makeText(this, "Ver borradores (próximamente)", Toast.LENGTH_SHORT).show()
-            // TODO: Navegar a DraftsActivity
+            val intent = Intent(this, DraftsActivity::class.java)
+            startActivity(intent)
         }
 
         // Ver favoritos - ✅ CONECTADO A FavoritesActivity
@@ -90,33 +90,8 @@ class ProfileActivity : AppCompatActivity() {
     }
 
     private fun getUserPosts(): List<Post> {
-        // Simular posts del usuario actual
-        return listOf(
-            Post(
-                id = 1001,
-                title = "Tacos al pastor caseros",
-                description = "Mi receta especial de tacos al pastor con ingredientes frescos y marinado casero.",
-                imageUrl = "user_tacos",
-                author = "@Pozos",
-                createdAt = "Hace 1 día",
-                isOwner = true,
-                isFavorite = false,
-                likesCount = 15,
-                commentsCount = 8
-            ),
-            Post(
-                id = 1002,
-                title = "Desayuno saludable perfecto",
-                description = "Bowl nutritivo perfecto para empezar el día con energía y vitalidad.",
-                imageUrl = "user_breakfast",
-                author = "@Pozos",
-                createdAt = "Hace 3 días",
-                isOwner = true,
-                isFavorite = true,
-                likesCount = 22,
-                commentsCount = 12
-            )
-        )
+        // Simular posts del usuario actual (solo publicados, no borradores)
+        return Post.getSamplePosts().filter { it.isOwner && !it.isDraft }
     }
 
     private fun updateUI() {

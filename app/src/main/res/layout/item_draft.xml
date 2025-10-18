@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="8dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="2dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?android:attr/selectableItemBackground">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Imagen de la receta (borrador) -->
+        <ImageView
+            android:id="@+id/ivDraftImage"
+            android:layout_width="match_parent"
+            android:layout_height="200dp"
+            android:scaleType="centerCrop"
+            android:alpha="0.7"
+            android:contentDescription="Imagen del borrador"
+            tools:src="@mipmap/ic_launcher" />
+
+        <!-- Overlay de "BORRADOR" -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="-40dp"
+            android:layout_marginBottom="8dp">
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:background="@drawable/draft_overlay_background" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="📝 BORRADOR"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:background="#80000000"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="4dp" />
+
+        </FrameLayout>
+
+        <!-- Contenido del borrador -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Título del borrador -->
+            <TextView
+                android:id="@+id/tvDraftTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:textColor="#333333"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:maxLines="2"
+                android:ellipsize="end"
+                tools:text="Pozole rojo tradicional" />
+
+            <!-- Descripción del borrador -->
+            <TextView
+                android:id="@+id/tvDraftDescription"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:textColor="#666666"
+                android:textSize="14sp"
+                android:maxLines="3"
+                android:ellipsize="end"
+                android:lineSpacingExtra="2dp"
+                tools:text="Receta familiar de pozole rojo con maíz pozolero, carne de cerdo..." />
+
+            <!-- Fecha de guardado -->
+            <TextView
+                android:id="@+id/tvDraftDate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:textColor="#999999"
+                android:textSize="12sp"
+                tools:text="Guardado hace 2 horas" />
+
+            <!-- Botones de acción -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="end">
+
+                <!-- Botón Eliminar -->
+                <Button
+                    android:id="@+id/btnDeleteDraft"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:layout_marginEnd="8dp"
+                    android:text="Eliminar"
+                    android:textColor="#DC3545"
+                    android:textSize="12sp"
+                    android:backgroundTint="#FFFFFF"
+                    app:cornerRadius="18dp"
+                    app:strokeColor="#DC3545"
+                    app:strokeWidth="1dp"
+                    android:paddingHorizontal="16dp" />
+
+                <!-- Botón Editar -->
+                <Button
+                    android:id="@+id/btnEditDraft"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:text="Editar"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp"
+                    android:backgroundTint="#4A7C92"
+                    app:cornerRadius="18dp"
+                    android:paddingHorizontal="16dp" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</androidx.cardview.widget.CardView>

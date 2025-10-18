@@ -22,32 +22,28 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
-        <!-- RegisterActivity - Pantalla de Registro -->
+        </activity> <!-- RegisterActivity - Pantalla de Registro -->
         <activity
             android:name=".RegisterActivity"
-            android:exported="false" />
-        <!-- FeedActivity - Pantalla principal del Feed -->
+            android:exported="false" /> <!-- FeedActivity - Pantalla principal del Feed -->
         <activity
             android:name=".FeedActivity"
-            android:exported="false" />
-        <!-- PostDetailActivity - Pantalla de detalle de publicación -->
+            android:exported="false" /> <!-- PostDetailActivity - Pantalla de detalle de publicación -->
         <activity
             android:name=".PostDetailActivity"
-            android:exported="false" />
-        <!-- ProfileActivity - Pantalla de Perfil -->
+            android:exported="false" /> <!-- ProfileActivity - Pantalla de Perfil -->
         <activity
             android:name=".ProfileActivity"
-            android:exported="false" />
-        <!-- EditProfileActivity - Pantalla de Editar Perfil -->
+            android:exported="false" /> <!-- EditProfileActivity - Pantalla de Editar Perfil -->
         <activity
             android:name=".EditProfileActivity"
-            android:exported="false" />
-        <!-- FavoritesActivity - Pantalla de Favoritos -->
+            android:exported="false" /> <!-- FavoritesActivity - Pantalla de Favoritos -->
         <activity
             android:name=".FavoritesActivity"
+            android:exported="false" /> <!-- DraftsActivity - Pantalla de Borradores -->
+        <activity
+            android:name=".DraftsActivity"
             android:exported="false" />
-
     </application>
 
 </manifest>
