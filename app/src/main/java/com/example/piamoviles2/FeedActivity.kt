@@ -33,7 +33,8 @@ class FeedActivity : AppCompatActivity() {
         val headerView = findViewById<android.view.View>(R.id.headerApp)
         HeaderUtils.setupHeaderWithProfile(headerView) {
             // Navegar a pantalla de perfil
-            Toast.makeText(this, "Ir a perfil (próximamente)", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, ProfileActivity::class.java)
+            startActivity(intent)
         }
     }
 

@@ -12,6 +12,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.PIAMOVILES2"
         tools:targetApi="31">
+
         <!-- MainActivity - Pantalla de Login (LAUNCHER) -->
         <activity
             android:name=".MainActivity"
@@ -27,11 +28,17 @@
             android:exported="false" /> <!-- FeedActivity - Pantalla principal del Feed -->
         <activity
             android:name=".FeedActivity"
-            android:exported="false" />
-        <!-- PostDetailActivity - Pantalla de detalle de publicación -->
+            android:exported="false" /> <!-- PostDetailActivity - Pantalla de detalle de publicación -->
         <activity
             android:name=".PostDetailActivity"
+            android:exported="false" /> <!-- ProfileActivity - Pantalla de Perfil -->
+        <activity
+            android:name=".ProfileActivity"
             android:exported="false" />
+        <activity
+            android:name=".EditProfileActivity"
+            android:exported="false" /> <!-- EditProfileActivity - Pantalla de edición de Perfil (Reutiliza el registro) -->
+
     </application>
 
 </manifest>

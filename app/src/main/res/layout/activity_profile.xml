@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F5F9FF"
+    android:orientation="vertical"
+    tools:context=".ProfileActivity">
+
+    <!-- Header reutilizable con botón de regreso -->
+    <include
+        android:id="@+id/headerApp"
+        layout="@layout/header_app" />
+
+    <!-- Contenido principal con scroll -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Título "Mi perfil" -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="32dp"
+                android:text="Mi perfil"
+                android:textColor="#000000"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <!-- Información del usuario -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center_horizontal"
+                android:layout_marginBottom="32dp">
+
+                <!-- Avatar circular -->
+                <ImageView
+                    android:id="@+id/ivProfileAvatar"
+                    android:layout_width="120dp"
+                    android:layout_height="120dp"
+                    android:layout_marginBottom="16dp"
+                    android:src="@mipmap/ic_launcher"
+                    android:background="@drawable/circle_background"
+                    android:scaleType="centerCrop"
+                    android:contentDescription="Avatar de usuario" />
+
+                <!-- Alias del usuario -->
+                <TextView
+                    android:id="@+id/tvUserAlias"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    android:textColor="#000000"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    tools:text="Pozos" />
+
+                <!-- Email del usuario -->
+                <TextView
+                    android:id="@+id/tvUserEmail"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#666666"
+                    android:textSize="14sp"
+                    tools:text="kikepozos@gmail.com" />
+
+            </LinearLayout>
+
+            <!-- Botones de acción en grid 2x2 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginHorizontal="24dp"
+                android:layout_marginBottom="32dp">
+
+                <!-- Fila 1: Modificar perfil + Agregar receta -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="16dp">
+
+                    <!-- Modificar perfil -->
+                    <Button
+                        android:id="@+id/btnModifyProfile"
+                        android:layout_width="0dp"
+                        android:layout_height="48dp"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="8dp"
+                        android:text="Modificar perfil"
+                        android:textColor="#FFFFFF"
+                        android:textSize="14sp"
+                        android:backgroundTint="#4A7C92"
+                        app:cornerRadius="8dp" />
+
+                    <!-- Agregar receta -->
+                    <Button
+                        android:id="@+id/btnAddRecipe"
+                        android:layout_width="0dp"
+                        android:layout_height="48dp"
+                        android:layout_weight="1"
+                        android:layout_marginStart="8dp"
+                        android:text="Agregar receta"
+                        android:textColor="#FFFFFF"
+                        android:textSize="14sp"
+                        android:backgroundTint="#4A7C92"
+                        app:cornerRadius="8dp" />
+
+                </LinearLayout>
+
+                <!-- Fila 2: Ver borradores + Ver favoritos -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <!-- Ver borradores -->
+                    <Button
+                        android:id="@+id/btnViewDrafts"
+                        android:layout_width="0dp"
+                        android:layout_height="48dp"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="8dp"
+                        android:text="Ver borradores"
+                        android:textColor="#4A7C92"
+                        android:textSize="14sp"
+                        android:backgroundTint="#FFFFFF"
+                        app:cornerRadius="8dp"
+                        app:strokeColor="#4A7C92"
+                        app:strokeWidth="1dp" />
+
+                    <!-- Ver favoritos -->
+                    <Button
+                        android:id="@+id/btnViewFavorites"
+                        android:layout_width="0dp"
+                        android:layout_height="48dp"
+                        android:layout_weight="1"
+                        android:layout_marginStart="8dp"
+                        android:text="Ver favoritos"
+                        android:textColor="#4A7C92"
+                        android:textSize="14sp"
+                        android:backgroundTint="#FFFFFF"
+                        app:cornerRadius="8dp"
+                        app:strokeColor="#4A7C92"
+                        app:strokeWidth="1dp" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <!-- Separador -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginHorizontal="24dp"
+                android:layout_marginBottom="24dp"
+                android:background="#E0E0E0" />
+
+            <!-- Sección "Mis recetas" -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="16dp">
+
+                <!-- Título -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    android:text="Mis recetas"
+                    android:textColor="#000000"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <!-- Lista de recetas del usuario (reutilizando PostAdapter) -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvUserPosts"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false"
+                    tools:listitem="@layout/item_post" />
+
+                <!-- Mensaje cuando no hay recetas -->
+                <LinearLayout
+                    android:id="@+id/layoutEmptyPosts"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:padding="32dp"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Aún no tienes recetas"
+                        android:textColor="#999999"
+                        android:textSize="16sp"
+                        android:gravity="center" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="¡Comparte tu primera receta!"
+                        android:textColor="#CCCCCC"
+                        android:textSize="14sp"
+                        android:gravity="center" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </ScrollView>
+
+</LinearLayout>

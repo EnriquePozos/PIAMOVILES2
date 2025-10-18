@@ -60,6 +60,28 @@ data class Post(
                     createdAt = "Hace 2 días",
                     likesCount = 38,
                     commentsCount = 15
+                ),
+                Post(
+                    id = 1001,
+                    title = "Tacos al pastor",
+                    description = "Mi receta especial de tacos al pastor con ingredientes frescos y marinado casero.",
+                    imageUrl = "user_tacos",
+                    author = "@Pozos",
+                    createdAt = "Hace 1 día",
+                    isOwner = true,
+                    likesCount = 15,
+                    commentsCount = 8
+                ),
+                Post(
+                    id = 1002,
+                    title = "Desayuno saludable",
+                    description = "Bowl nutritivo perfecto para empezar el día con energía y vitalidad.",
+                    imageUrl = "user_breakfast",
+                    author = "@Pozos",
+                    createdAt = "Hace 3 días",
+                    isOwner = true,
+                    likesCount = 22,
+                    commentsCount = 12
                 )
             )
         }
