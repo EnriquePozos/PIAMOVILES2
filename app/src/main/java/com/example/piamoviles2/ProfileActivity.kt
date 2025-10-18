@@ -75,10 +75,10 @@ class ProfileActivity : AppCompatActivity() {
             // TODO: Navegar a DraftsActivity
         }
 
-        // Ver favoritos
+        // Ver favoritos - ✅ CONECTADO A FavoritesActivity
         binding.btnViewFavorites.setOnClickListener {
-            Toast.makeText(this, "Ver favoritos (próximamente)", Toast.LENGTH_SHORT).show()
-            // TODO: Navegar a FavoritesActivity
+            val intent = Intent(this, FavoritesActivity::class.java)
+            startActivity(intent)
         }
     }
 
@@ -94,23 +94,25 @@ class ProfileActivity : AppCompatActivity() {
         return listOf(
             Post(
                 id = 1001,
-                title = "Tacos al pastor",
+                title = "Tacos al pastor caseros",
                 description = "Mi receta especial de tacos al pastor con ingredientes frescos y marinado casero.",
                 imageUrl = "user_tacos",
                 author = "@Pozos",
                 createdAt = "Hace 1 día",
                 isOwner = true,
+                isFavorite = false,
                 likesCount = 15,
                 commentsCount = 8
             ),
             Post(
                 id = 1002,
-                title = "Desayuno saludable",
+                title = "Desayuno saludable perfecto",
                 description = "Bowl nutritivo perfecto para empezar el día con energía y vitalidad.",
                 imageUrl = "user_breakfast",
                 author = "@Pozos",
                 createdAt = "Hace 3 días",
                 isOwner = true,
+                isFavorite = true,
                 likesCount = 22,
                 commentsCount = 12
             )
