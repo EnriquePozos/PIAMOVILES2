@@ -38,7 +38,7 @@ class ProfileActivity : AppCompatActivity() {
         binding.tvUserEmail.text = "kikepozos@gmail.com"
 
         // Avatar (por ahora usando el launcher icon)
-        binding.ivProfileAvatar.setImageResource(R.mipmap.ic_launcher)
+        binding.ivProfileAvatar.setImageResource(R.mipmap.ic_foto_perfil_round)
     }
 
     private fun setupRecyclerView() {

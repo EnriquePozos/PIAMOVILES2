@@ -42,8 +42,7 @@
                 android:layout_width="74dp"
                 android:layout_height="74dp"
                 android:layout_marginBottom="15dp"
-                android:src="@mipmap/ic_launcher"
-                android:background="@drawable/circle_background"
+                android:src="@drawable/ic_logo"
                 android:contentDescription="Icono de bienvenida" />
 
             <!-- Texto de bienvenida -->

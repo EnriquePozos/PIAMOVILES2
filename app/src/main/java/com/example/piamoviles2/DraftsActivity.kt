@@ -47,7 +47,7 @@ class DraftsActivity : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
-        // Botón para crear nueva receta - ✅ CONECTADO A CreatePostActivity
+        // Botón para crear nueva receta - CONECTADO A CreatePostActivity
         binding.btnCreateNewRecipe.setOnClickListener {
             val intent = Intent(this, CreatePostActivity::class.java)
             startActivity(intent)
@@ -86,7 +86,7 @@ class DraftsActivity : AppCompatActivity() {
     }
 
     private fun editDraft(draft: Post) {
-        // ✅ CONECTADO A CreatePostActivity con ID del borrador
+        // CONECTADO A CreatePostActivity con ID del borrador
         val intent = Intent(this, CreatePostActivity::class.java)
         intent.putExtra(CreatePostActivity.EXTRA_DRAFT_ID, draft.id)
         startActivity(intent)
