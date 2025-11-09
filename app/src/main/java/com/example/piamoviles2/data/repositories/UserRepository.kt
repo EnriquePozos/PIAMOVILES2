@@ -9,20 +9,6 @@ class UserRepository(
     private val apiService: ApiService = NetworkConfig.apiService
 ) {
 
-    suspend fun registrarUsuario(request: UsuarioCreateRequest): Result<UsuarioResponse> {
-        return try {
-            val response = apiService.registrarUsuario(request)
-            if (response.isSuccessful && response.body() != null) {
-                Result.success(response.body()!!)
-            } else {
-                val errorMsg = parseErrorMessage(response)
-                Result.failure(Exception(errorMsg))
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
     suspend fun loginUsuario(email: String, contrasena: String): Result<LoginResponse> {
         android.util.Log.d("API_DEBUG", "=== UserRepository.loginUsuario ===")
         android.util.Log.d("API_DEBUG", "Email: $email")
@@ -50,6 +36,9 @@ class UserRepository(
         }
     }
 
+
+
+
     suspend fun obtenerPerfil(usuarioId: String, token: String): Result<UsuarioResponse> {
         return try {
             val response = apiService.obtenerPerfil(usuarioId, "Bearer $token")
@@ -60,6 +49,56 @@ class UserRepository(
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+
+// REGISTRO DE USUARIO - VERSIÓN CORREGIDA
+    suspend fun registrarUsuario(
+        email: String,
+        alias: String,
+        contrasena: String,
+        nombre: String,
+        apellidoPaterno: String,
+        apellidoMaterno: String? = null,
+        telefono: String? = null,
+        direccion: String? = null,
+        fotoPerfil: String? = null
+    ): Result<UsuarioResponse> {
+        android.util.Log.d("API_DEBUG", "=== UserRepository.registrarUsuario ===")
+        android.util.Log.d("API_DEBUG", "Email: $email")
+        android.util.Log.d("API_DEBUG", "Alias: $alias")
+
+        return try {
+            // Crear el request object
+            val request = UsuarioCreateRequest(
+                email = email,
+                alias = alias,
+                contrasena = contrasena,
+                nombre = nombre,
+                apellidoPaterno = apellidoPaterno,
+                apellidoMaterno = apellidoMaterno,
+                telefono = telefono,
+                direccion = direccion,
+                fotoPerfil = fotoPerfil
+            )
+
+            android.util.Log.d("API_DEBUG", "Haciendo llamada a apiService.registrarUsuario...")
+            val response = apiService.registrarUsuario(request)
+            android.util.Log.d("API_DEBUG", "Response code: ${response.code()}")
+            android.util.Log.d("API_DEBUG", "Response successful: ${response.isSuccessful}")
+
+            if (response.isSuccessful && response.body() != null) {
+                android.util.Log.d("API_DEBUG", "Registro exitoso")
+                Result.success(response.body()!!)
+            } else {
+                val errorMsg = parseErrorMessage(response)
+                android.util.Log.e("API_DEBUG", "Error del servidor: $errorMsg")
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("API_DEBUG", "Exception en registrarUsuario: ${e.message}")
             Result.failure(e)
         }
     }

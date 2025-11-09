@@ -7,11 +7,16 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.piamoviles2.databinding.ActivityFeedBinding
+import androidx.appcompat.app.AlertDialog
+import com.example.piamoviles2.utils.SessionManager
 
 class FeedActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityFeedBinding
     private lateinit var postAdapter: PostAdapter
+
+    private lateinit var sessionManager: SessionManager
+
     private var allPosts = mutableListOf<Post>()
     private var filteredPosts = mutableListOf<Post>()
 
@@ -26,6 +31,9 @@ class FeedActivity : AppCompatActivity() {
         setupSearchView()
         //setupClickListeners()
         loadPosts()
+
+        sessionManager = SessionManager(this)
+
     }
 
     private fun setupHeader() {
@@ -122,4 +130,42 @@ class FeedActivity : AppCompatActivity() {
 //        super.onBackPressed()
 //        finishAffinity() // Cierra toda la app
 //    }
+@Deprecated("Deprecated in Java")
+override fun onBackPressed() {
+    showLogoutConfirmDialog()
+}
+
+    private fun showLogoutConfirmDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Cerrar sesión")
+            .setMessage("¿Estás seguro de que quieres cerrar sesión?")
+            .setPositiveButton("Cerrar sesión") { _, _ ->
+                performLogout()
+            }
+            .setNegativeButton("Cancelar") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .setNeutralButton("Salir de la app") { _, _ ->
+                // Cerrar la app completamente
+                finishAffinity()
+            }
+            .show()
+    }
+
+    private fun performLogout() {
+        // Limpiar sesión
+        sessionManager.logout()
+
+        // Log para debugging
+        android.util.Log.d("LOGOUT_DEBUG", "Sesión limpiada, navegando al login")
+
+        // Mostrar mensaje
+        Toast.makeText(this, "Sesión cerrada exitosamente", Toast.LENGTH_SHORT).show()
+
+        // Navegar al login y limpiar stack
+        val intent = Intent(this, MainActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(intent)
+        finish()
+    }
 }

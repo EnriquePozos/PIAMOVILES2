@@ -5,17 +5,26 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import com.example.piamoviles2.databinding.ActivityRegisterBinding
+import com.example.piamoviles2.data.repositories.UserRepository
+import com.example.piamoviles2.data.models.UsuarioCreateRequest
+import com.example.piamoviles2.utils.ValidationUtils
 
 class RegisterActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityRegisterBinding
+    private lateinit var userRepository: UserRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         binding = ActivityRegisterBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // Inicializar repository
+        userRepository = UserRepository()
 
         // Encontrar el header incluido y configurarlo
         val headerView = findViewById<View>(R.id.headerApp)
@@ -26,8 +35,6 @@ class RegisterActivity : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
-        // El botón back ya está manejado por HeaderUtils
-
         // Selector de imagen de perfil
         binding.ivProfileImage.setOnClickListener {
             // TODO: Implementar selector de imagen
@@ -50,93 +57,133 @@ class RegisterActivity : AppCompatActivity() {
         val direccion = binding.etAddress.text.toString().trim()
         val alias = binding.etAlias.text.toString().trim()
 
-        // Validaciones básicas
-        if (nombre.isEmpty()) {
-            binding.etName.error = "El nombre es requerido"
-            binding.etName.requestFocus()
+        // Validaciones según requerimientos del proyecto
+        if (!validateRequiredFields(email, alias, password, nombre, apellidoPaterno)) {
             return
         }
 
-        if (apellidoPaterno.isEmpty()) {
-            binding.etLastNamePaternal.error = "El apellido paterno es requerido"
-            binding.etLastNamePaternal.requestFocus()
+        // Validaciones específicas usando ValidationUtils
+        if (!ValidationUtils.isValidEmail(email)) {
+            showError("Formato de email inválido")
             return
         }
 
-        if (apellidoMaterno.isEmpty()) {
-            binding.etLastNameMaternal.error = "El apellido materno es requerido"
-            binding.etLastNameMaternal.requestFocus()
+        if (!ValidationUtils.isValidPassword(password)) {
+            showError(ValidationUtils.getPasswordErrorMessage(password) ?: "Contraseña inválida")
             return
         }
 
-        if (email.isEmpty()) {
-            binding.etEmail.error = "El correo electrónico es requerido"
-            binding.etEmail.requestFocus()
+        if (!ValidationUtils.isValidAlias(alias)) {
+            showError("El alias debe tener al menos 3 caracteres")
             return
         }
 
-        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            binding.etEmail.error = "Por favor ingrese un correo electrónico válido"
-            binding.etEmail.requestFocus()
+        if (!ValidationUtils.isValidName(nombre)) {
+            showError("El nombre debe tener al menos 2 caracteres")
             return
         }
 
-        if (password.isEmpty()) {
-            binding.etPassword.error = "La contraseña es requerida"
-            binding.etPassword.requestFocus()
+        if (!ValidationUtils.isValidName(apellidoPaterno)) {
+            showError("El apellido paterno debe tener al menos 2 caracteres")
             return
         }
 
-        // Validación de contraseña según especificaciones del proyecto:
-        // Mínimo 10 caracteres, una mayúscula, una minúscula y un número
-        if (!isValidPassword(password)) {
-            binding.etPassword.error = "La contraseña debe tener mínimo 10 caracteres, una mayúscula, una minúscula y un número"
-            binding.etPassword.requestFocus()
+        if (!ValidationUtils.isValidPhone(telefono.ifBlank { null })) {
+            showError("El teléfono debe tener 10 dígitos")
             return
         }
 
-        if (alias.isEmpty()) {
-            binding.etAlias.error = "El alias es requerido"
-            binding.etAlias.requestFocus()
-            return
-        }
-
-        // Si todas las validaciones pasan
-        performRegistration()
+        // Si todas las validaciones pasan, proceder con el registro
+        performNetworkRegistration(
+            email, alias, password, nombre, apellidoPaterno,
+            apellidoMaterno.ifBlank { null },
+            telefono.ifBlank { null },
+            direccion.ifBlank { null }
+        )
     }
 
-    private fun isValidPassword(password: String): Boolean {
-        if (password.length < 10) return false
-
-        var hasUpper = false
-        var hasLower = false
-        var hasDigit = false
-
-        for (char in password) {
-            when {
-                char.isUpperCase() -> hasUpper = true
-                char.isLowerCase() -> hasLower = true
-                char.isDigit() -> hasDigit = true
+    private fun validateRequiredFields(
+        email: String, alias: String, password: String,
+        nombre: String, apellidoPaterno: String
+    ): Boolean {
+        when {
+            email.isEmpty() -> {
+                showError("El email es obligatorio")
+                return false
+            }
+            alias.isEmpty() -> {
+                showError("El alias es obligatorio")
+                return false
+            }
+            password.isEmpty() -> {
+                showError("La contraseña es obligatoria")
+                return false
+            }
+            nombre.isEmpty() -> {
+                showError("El nombre es obligatorio")
+                return false
+            }
+            apellidoPaterno.isEmpty() -> {
+                showError("El apellido paterno es obligatorio")
+                return false
             }
         }
-
-        return hasUpper && hasLower && hasDigit
+        return true
     }
 
-    private fun performRegistration() {
-        // Mostrar loading
-        binding.btnRegister.isEnabled = false
-        binding.btnRegister.text = "Registrando..."
+    private fun performNetworkRegistration(
+        email: String, alias: String, password: String,
+        nombre: String, apellidoPaterno: String,
+        apellidoMaterno: String?, telefono: String?, direccion: String?
+    ) {
+        android.util.Log.d("REGISTER_DEBUG", "=== INICIANDO REGISTRO ===")
+        android.util.Log.d("REGISTER_DEBUG", "Email: $email")
+        android.util.Log.d("REGISTER_DEBUG", "Alias: $alias")
 
-        // Simular registro exitoso
-        Toast.makeText(this, "¡Registro exitoso! Bienvenido a El sazón de Toto", Toast.LENGTH_LONG).show()
+        lifecycleScope.launch {
+            try {
+                binding.btnRegister.isEnabled = false
+                binding.btnRegister.text = "Registrando..."
 
-        // TODO: Aquí conectarías con tu API para registrar al usuario
+                val result = userRepository.registrarUsuario(
+                    email = email,
+                    alias = alias,
+                    contrasena = password,
+                    nombre = nombre,
+                    apellidoPaterno = apellidoPaterno,
+                    apellidoMaterno = apellidoMaterno,
+                    telefono = telefono,
+                    direccion = direccion,
+                    fotoPerfil = null
+                )
 
-        // Navegar de regreso al login
-        val intent = Intent(this, MainActivity::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-        startActivity(intent)
-        finish()
+                result.fold(
+                    onSuccess = { response ->
+                        android.util.Log.d("REGISTER_DEBUG", "Registro exitoso: ${response.id}")
+                        showSuccess("¡Registro exitoso! Bienvenido a El sazón de Toto")
+                        // Regresar a login
+                        finish()
+                    },
+                    onFailure = { error ->
+                        android.util.Log.e("REGISTER_DEBUG", "Error en registro: ${error.message}")
+                        showError("Error en registro: ${error.message}")
+                    }
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("REGISTER_DEBUG", "Exception: ${e.message}")
+                showError("Error inesperado: ${e.message}")
+            } finally {
+                binding.btnRegister.isEnabled = true
+                binding.btnRegister.text = "Registrarse"
+            }
+        }
+    }
+
+    private fun showError(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+    }
+
+    private fun showSuccess(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 }

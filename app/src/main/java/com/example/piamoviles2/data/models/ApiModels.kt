@@ -28,6 +28,34 @@ data class LoginResponse(
     val usuario: UsuarioResponse
 )
 
+// ============================================
+// REGISTRO DE USUARIO - REQUEST & RESPONSE
+// ============================================
+data class RegistroRequest(
+    val email: String,
+    val alias: String,
+    @SerializedName("contraseña") val contrasena: String,
+    val nombre: String,
+    @SerializedName("apellido_paterno") val apellidoPaterno: String,
+    @SerializedName("apellido_materno") val apellidoMaterno: String? = null,
+    val telefono: String? = null,
+    val direccion: String? = null,
+    @SerializedName("foto_perfil") val fotoPerfil: String? = null
+)
+
+data class RegistroResponse(
+    val id: String,
+    val email: String,
+    val alias: String,
+    val nombre: String,
+    @SerializedName("apellido_paterno") val apellidoPaterno: String,
+    @SerializedName("apellido_materno") val apellidoMaterno: String?,
+    val telefono: String?,
+    val direccion: String?,
+    @SerializedName("foto_perfil") val fotoPerfil: String?,
+    @SerializedName("fecha_registro") val fechaRegistro: String
+)
+
 data class UsuarioResponse(
     val id: String,
     val email: String,

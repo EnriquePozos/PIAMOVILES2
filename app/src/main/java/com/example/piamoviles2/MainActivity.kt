@@ -68,8 +68,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Manejar click del link "Regístrate aquí"
-        binding.tvRegisterLink.setOnClickListener {
+        binding.tvGoToRegister?.setOnClickListener {
             val intent = Intent(this, RegisterActivity::class.java)
             startActivity(intent)
         }
