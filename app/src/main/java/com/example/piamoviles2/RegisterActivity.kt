@@ -11,11 +11,18 @@ import com.example.piamoviles2.databinding.ActivityRegisterBinding
 import com.example.piamoviles2.data.repositories.UserRepository
 import com.example.piamoviles2.data.models.UsuarioCreateRequest
 import com.example.piamoviles2.utils.ValidationUtils
+import android.graphics.Bitmap
+import androidx.appcompat.app.AlertDialog
+import java.io.ByteArrayOutputStream
 
 class RegisterActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityRegisterBinding
     private lateinit var userRepository: UserRepository
+
+    private lateinit var imagePickerHelper: ImagePickerHelper
+    private var selectedImageBitmap: Bitmap? = null
+    private var selectedImageBase64: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -25,6 +32,7 @@ class RegisterActivity : AppCompatActivity() {
 
         // Inicializar repository
         userRepository = UserRepository()
+        setupImagePicker()
 
         // Encontrar el header incluido y configurarlo
         val headerView = findViewById<View>(R.id.headerApp)
@@ -34,17 +42,69 @@ class RegisterActivity : AppCompatActivity() {
         setupClickListeners()
     }
 
+    private fun setupImagePicker() {
+        imagePickerHelper = ImagePickerHelper(this) { bitmap ->
+            bitmap?.let {
+                // Redimensionar imagen para optimizar
+                selectedImageBitmap = ImagePickerHelper.resizeBitmap(it, 400, 400)
+
+                // Mostrar preview en ImageView
+                binding.ivProfileImage.setImageBitmap(selectedImageBitmap)
+
+                // Convertir a Base64 para envío
+                selectedImageBase64 = bitmapToBase64(selectedImageBitmap!!)
+
+                android.util.Log.d("IMAGE_DEBUG", "Imagen seleccionada y procesada")
+                android.util.Log.d("IMAGE_DEBUG", "Base64 length: ${selectedImageBase64?.length}")
+
+                Toast.makeText(this, "Imagen seleccionada correctamente", Toast.LENGTH_SHORT).show()
+            } ?: run {
+                Toast.makeText(this, "Error al seleccionar imagen", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     private fun setupClickListeners() {
-        // Selector de imagen de perfil
+
         binding.ivProfileImage.setOnClickListener {
-            // TODO: Implementar selector de imagen
-            Toast.makeText(this, "Selector de imagen próximamente", Toast.LENGTH_SHORT).show()
+            showImagePickerDialog()
         }
 
         // Botón registrarse
         binding.btnRegister.setOnClickListener {
             validateAndRegister()
         }
+    }
+
+    private fun showImagePickerDialog() {
+        val options = arrayOf("Tomar foto", "Seleccionar de galería", "Cancelar")
+
+        val builder = androidx.appcompat.app.AlertDialog.Builder(this)
+        builder.setTitle("Seleccionar imagen de perfil")
+        builder.setItems(options) { dialog, which ->
+            when (which) {
+                0 -> {
+                    // Tomar foto
+                    imagePickerHelper.openCamera()
+                }
+                1 -> {
+                    // Seleccionar de galería
+                    imagePickerHelper.openGallery()
+                }
+                2 -> {
+                    // Cancelar
+                    dialog.dismiss()
+                }
+            }
+        }
+        builder.show()
+    }
+
+    private fun bitmapToBase64(bitmap: Bitmap): String {
+        val byteArrayOutputStream = java.io.ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 80, byteArrayOutputStream)
+        val byteArray = byteArrayOutputStream.toByteArray()
+        return android.util.Base64.encodeToString(byteArray, android.util.Base64.DEFAULT)
     }
 
     private fun validateAndRegister() {
@@ -139,11 +199,13 @@ class RegisterActivity : AppCompatActivity() {
         android.util.Log.d("REGISTER_DEBUG", "=== INICIANDO REGISTRO ===")
         android.util.Log.d("REGISTER_DEBUG", "Email: $email")
         android.util.Log.d("REGISTER_DEBUG", "Alias: $alias")
+        android.util.Log.d("REGISTER_DEBUG", "Tiene imagen: ${selectedImageBase64 != null}")
 
         lifecycleScope.launch {
             try {
                 binding.btnRegister.isEnabled = false
                 binding.btnRegister.text = "Registrando..."
+
 
                 val result = userRepository.registrarUsuario(
                     email = email,
@@ -154,14 +216,14 @@ class RegisterActivity : AppCompatActivity() {
                     apellidoMaterno = apellidoMaterno,
                     telefono = telefono,
                     direccion = direccion,
-                    fotoPerfil = null
+                    fotoPerfil = selectedImageBase64 //Enviar imagen si existe
                 )
 
                 result.fold(
                     onSuccess = { response ->
                         android.util.Log.d("REGISTER_DEBUG", "Registro exitoso: ${response.id}")
+                        android.util.Log.d("REGISTER_DEBUG", "Foto perfil URL: ${response.fotoPerfil}")
                         showSuccess("¡Registro exitoso! Bienvenido a El sazón de Toto")
-                        // Regresar a login
                         finish()
                     },
                     onFailure = { error ->
