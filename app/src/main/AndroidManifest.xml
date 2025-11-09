@@ -13,6 +13,13 @@
         android:name="android.hardware.camera"
         android:required="false" />
 
+    <!-- Permisos para conexión a internet y estado de red -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Permisos adicionales para DevTunnels -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -22,7 +29,9 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.PIAMOVILES2"
-        tools:targetApi="31">
+        android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/network_security_config"
+        tools:targetApi="29">
 
         <!-- MainActivity - Pantalla de Login (LAUNCHER) -->
         <activity

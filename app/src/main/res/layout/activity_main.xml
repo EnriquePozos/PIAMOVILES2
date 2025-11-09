@@ -36,7 +36,7 @@
             android:padding="24dp"
             android:gravity="center_horizontal">
 
-            <!-- Icono de galleta sonriente -->
+            <!-- Icono de galleta -->
             <ImageView
                 android:id="@+id/ivWelcomeIcon"
                 android:layout_width="74dp"
