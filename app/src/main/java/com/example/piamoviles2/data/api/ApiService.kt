@@ -11,11 +11,18 @@ import retrofit2.http.Part
 import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Header
+
+/**
+ * Interfaz de servicios API para "El Sazón de Toto"
+ * Contiene todos los endpoints para usuarios y publicaciones
+ */
 interface ApiService {
 
-    // USUARIOS
+    // ============================================
+    // ENDPOINTS DE USUARIOS
+    // ============================================
 
-// POST - REGISTRO DE USUARIO
+    // POST - REGISTRO DE USUARIO
     @Multipart
     @POST("api/usuarios/registro")
     suspend fun registrarUsuario(
@@ -30,12 +37,12 @@ interface ApiService {
         @Part foto_perfil: MultipartBody.Part?
     ): Response<UsuarioResponse>
 
-// POST - LOGIN
-@POST("api/usuarios/login")
-suspend fun loginUsuario(
-    @Query("email") email: String,
-    @Query("contraseña") contrasena: String
-): Response<LoginResponse>
+    // POST - LOGIN
+    @POST("api/usuarios/login")
+    suspend fun loginUsuario(
+        @Query("email") email: String,
+        @Query("contraseña") contrasena: String
+    ): Response<LoginResponse>
 
     @GET("api/usuarios/perfil/{usuario_id}")
     suspend fun obtenerPerfil(
@@ -49,8 +56,7 @@ suspend fun loginUsuario(
         @Header("Authorization") authorization: String
     ): Response<UsuarioResponse>
 
-
-// ENDPOINTS DE PERFIL Y EDICIÓN
+    // ENDPOINTS DE PERFIL Y EDICIÓN
     @GET("api/usuarios/{usuario_id}")
     suspend fun obtenerPerfilUsuario(
         @Path("usuario_id") usuarioId: String,
@@ -80,10 +86,9 @@ suspend fun loginUsuario(
         @Header("Authorization") authHeader: String
     ): Response<CambiarContrasenaResponse>
 
-
-// ============================================
-// ENDPOINTS DE PUBLICACIONES
-// ============================================
+    // ============================================
+    // ENDPOINTS DE PUBLICACIONES
+    // ============================================
 
     // Crear nueva publicación con archivos
     @Multipart
@@ -129,11 +134,36 @@ suspend fun loginUsuario(
         @Header("Authorization") authorization: String
     ): Response<PublicacionDeletedResponse>
 
-    // Obtener publicaciones del usuario
+    // ============================================
+    // ENDPOINTS DE PUBLICACIONES DE USUARIO
+    // ============================================
+
+    // Obtener publicaciones del usuario (método genérico con parámetro)
     @GET("api/publicaciones/usuario/{id_autor}")
     suspend fun obtenerPublicacionesUsuario(
         @Path("id_autor") idAutor: String,
         @Header("Authorization") authorization: String,
         @Query("incluir_borradores") incluirBorradores: Boolean = false
+    ): Response<List<PublicacionListFeed>>
+
+    // Obtener publicaciones activas del usuario
+    @GET("api/publicaciones/get_user_active_pubs/{id_usuario}")
+    suspend fun obtenerPublicacionesActivasUsuario(
+        @Path("id_usuario") idUsuario: String,
+        @Header("Authorization") authorization: String
+    ): Response<List<PublicacionListFeed>>
+
+    // Obtener borradores del usuario
+    @GET("api/publicaciones/get_user_drafts/{id_usuario}")
+    suspend fun obtenerBorradoresUsuario(
+        @Path("id_usuario") idUsuario: String,
+        @Header("Authorization") authorization: String
+    ): Response<List<PublicacionListFeed>>
+
+    // Obtener favoritas del usuario
+    @GET("api/publicaciones/get_fav_pubs/{id_usuario}")
+    suspend fun obtenerFavoritasUsuario(
+        @Path("id_usuario") idUsuario: String,
+        @Header("Authorization") authorization: String
     ): Response<List<PublicacionListFeed>>
 }

@@ -271,11 +271,26 @@ class PublicacionRepository(
             android.util.Log.d("PUBLICACION_REPO_DEBUG", "Incluir borradores: $incluirBorradores")
 
             val authHeader = "Bearer $token"
-            val response = apiService.obtenerPublicacionesUsuario(
-                idAutor = idAutor,
-                incluirBorradores = incluirBorradores,
-                authorization = authHeader
-            )
+
+            // ✅ USAR ENDPOINTS CORRECTOS QUE SÍ EXISTEN EN EL BACKEND
+            val response = if (incluirBorradores) {
+                // Llamar endpoint de borradores
+                android.util.Log.d("PUBLICACION_REPO_DEBUG", "Llamando a obtenerBorradoresUsuario")
+                apiService.obtenerBorradoresUsuario(
+                    idUsuario = idAutor,
+                    authorization = authHeader
+                )
+            } else {
+                // Llamar endpoint de publicaciones activas
+                android.util.Log.d("PUBLICACION_REPO_DEBUG", "Llamando a obtenerPublicacionesActivasUsuario")
+                apiService.obtenerPublicacionesActivasUsuario(
+                    idUsuario = idAutor,
+                    authorization = authHeader
+                )
+            }
+
+            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Response code: ${response.code()}")
+            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Response successful: ${response.isSuccessful}")
 
             if (response.isSuccessful) {
                 response.body()?.let { publicaciones ->

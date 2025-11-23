@@ -9,12 +9,16 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.piamoviles2.databinding.ActivityProfileBinding
 import com.example.piamoviles2.utils.SessionManager
 import com.example.piamoviles2.utils.ImageUtils
-
+import com.example.piamoviles2.data.repositories.PublicacionRepository
+import kotlinx.coroutines.*
 class ProfileActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityProfileBinding
     private lateinit var postAdapter: PostAdapter
     private lateinit var sessionManager: SessionManager
+
+    private lateinit var publicacionRepository: PublicacionRepository
+
     private var userPosts = mutableListOf<Post>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -24,6 +28,8 @@ class ProfileActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         sessionManager = SessionManager(this)
+        publicacionRepository = PublicacionRepository()
+
 
         setupHeader()
         setupUserInfo()
@@ -96,9 +102,104 @@ class ProfileActivity : AppCompatActivity() {
         }
     }
 
+
+// CARGAR POSTS REALES
+
     private fun loadUserPosts() {
+        val currentUser = sessionManager.getCurrentUser()
+        val token = sessionManager.getAccessToken()
+
+        if (currentUser == null || token == null) {
+            android.util.Log.e("PROFILE_DEBUG", "❌ Error: Usuario o token no válido")
+            Toast.makeText(this, "Error: Sesión no válida", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        setLoadingPosts(true)
+
+        // Llamada a API con corrutinas
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                android.util.Log.d("PROFILE_DEBUG", "=== Cargando publicaciones del usuario ===")
+                android.util.Log.d("PROFILE_DEBUG", "User ID: ${currentUser.id}")
+
+                val result = withContext(Dispatchers.IO) {
+                    publicacionRepository.obtenerPublicacionesUsuarioConvertidas(
+                        idAutor = currentUser.id,
+                        incluirBorradores = false, // Solo publicaciones públicas
+                        token = token
+                    )
+                }
+
+                result.fold(
+                    onSuccess = { posts ->
+                        android.util.Log.d("PROFILE_DEBUG", "✅ Publicaciones cargadas: ${posts.size}")
+
+                        userPosts.clear()
+                        userPosts.addAll(posts)
+                        updateUI()
+
+                        if (posts.isEmpty()) {
+                            android.util.Log.d("PROFILE_DEBUG", "Usuario no tiene publicaciones")
+                        } else {
+                            Toast.makeText(this@ProfileActivity, "${posts.size} recetas cargadas", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    onFailure = { error ->
+                        android.util.Log.e("PROFILE_DEBUG", "❌ Error al cargar publicaciones", error)
+                        handlePostsError(error)
+                    }
+                )
+
+            } catch (e: Exception) {
+                android.util.Log.e("PROFILE_DEBUG", "❌ Exception al cargar publicaciones", e)
+                Toast.makeText(this@ProfileActivity, "Error inesperado: ${e.message}", Toast.LENGTH_LONG).show()
+            } finally {
+                setLoadingPosts(false)
+            }
+        }
+    }
+
+
+// NUEVOS MÉTODOS DE SOPORTE
+
+    private fun setLoadingPosts(loading: Boolean) {
+        if (loading) {
+            // Mostrar loading en el área de posts
+            binding.rvUserPosts.visibility = View.GONE
+            // Si tienes un ProgressBar para posts: binding.progressBarPosts.visibility = View.VISIBLE
+            android.util.Log.d("PROFILE_DEBUG", "Mostrando loading de posts...")
+        } else {
+            // Ocultar loading
+            // binding.progressBarPosts.visibility = View.GONE
+            binding.rvUserPosts.visibility = View.VISIBLE
+        }
+    }
+
+    private fun handlePostsError(error: Throwable) {
+        when {
+            error.message?.contains("404") == true -> {
+                // Usuario no tiene publicaciones
+                userPosts.clear()
+                updateUI()
+                Toast.makeText(this, "Aún no tienes publicaciones", Toast.LENGTH_SHORT).show()
+            }
+            error.message?.contains("401") == true || error.message?.contains("403") == true -> {
+                // Error de autenticación
+                Toast.makeText(this, "Error de autenticación", Toast.LENGTH_SHORT).show()
+            }
+            else -> {
+                // Error genérico - usar datos de ejemplo como fallback
+                android.util.Log.w("PROFILE_DEBUG", "Error en API, usando datos de ejemplo")
+                loadSamplePostsAsFallback()
+                Toast.makeText(this, "Error al cargar publicaciones reales, mostrando ejemplos", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun loadSamplePostsAsFallback() {
         userPosts.clear()
-        userPosts.addAll(getUserPosts())
+        userPosts.addAll(getUserPosts()) // Método original con datos de ejemplo
         updateUI()
     }
 
@@ -107,15 +208,29 @@ class ProfileActivity : AppCompatActivity() {
     }
 
     private fun updateUI() {
+        android.util.Log.d("PROFILE_DEBUG", "Actualizando UI - Posts: ${userPosts.size}")
+
         if (userPosts.isEmpty()) {
             binding.rvUserPosts.visibility = View.GONE
-            // Si tienes un layout para posts vacíos, mostrarlo aquí
+            android.util.Log.d("PROFILE_DEBUG", "Mostrando estado vacío")
         } else {
             binding.rvUserPosts.visibility = View.VISIBLE
-            // Si tienes un layout para posts vacíos, ocultarlo aquí
+            android.util.Log.d("PROFILE_DEBUG", "Mostrando ${userPosts.size} publicaciones")
+
+            // ✅ LOGS PARA DEBUGGING:
+            userPosts.forEachIndexed { index, post ->
+                android.util.Log.d("PROFILE_DEBUG", "Post $index: ${post.title}")
+            }
         }
 
+        // ✅ LOG ANTES DE submitList:
+        android.util.Log.d("PROFILE_DEBUG", "Llamando submitList con ${userPosts.size} elementos")
         postAdapter.submitList(userPosts.toList())
+
+        // Scroll al inicio si hay publicaciones
+        if (userPosts.isNotEmpty()) {
+            binding.rvUserPosts.scrollToPosition(0)
+        }
     }
 
     override fun onResume() {
