@@ -91,7 +91,7 @@ class UserRepository(
             // Crear RequestBody para campos de texto
             val emailBody = RequestBody.create(textMediaType, email)
             val aliasBody = RequestBody.create(textMediaType, alias)
-            val contrasenaBody = RequestBody.create(textMediaType, contrasenaEscapada) // ✅ Usar escapada
+            val contrasenaBody = RequestBody.create(textMediaType, contrasena)
 
             val nombreBody = nombre?.let { RequestBody.create(textMediaType, it) }
             val apellidoPaternoBody = apellidoPaterno?.let { RequestBody.create(textMediaType, it) }

@@ -5,16 +5,16 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.example.piamoviles2.databinding.ActivityRegisterBinding
+import com.example.piamoviles2.databinding.ActivityEditProfileBinding
 
 class EditProfileActivity : AppCompatActivity() {
 
-    private lateinit var binding: ActivityRegisterBinding
+    private lateinit var binding: ActivityEditProfileBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        binding = ActivityRegisterBinding.inflate(layoutInflater)
+        binding = ActivityEditProfileBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         setupHeader()
@@ -33,12 +33,9 @@ class EditProfileActivity : AppCompatActivity() {
         binding.etEmail.isEnabled = false
         binding.etEmail.alpha = 0.6f
 
-        // La contraseña SÍ se puede editar
-        binding.etPassword.isEnabled = true
-        binding.etPassword.hint = "Opcional"
-
-        // Cambiar el texto del botón
-        binding.btnRegister.text = "Guardar cambios"
+        // Los campos de contraseña están vacíos inicialmente para seguridad
+        binding.etCurrentPassword.setText("")
+        binding.etNewPassword.setText("")
 
         // Hacer campos opcionales más visibles
         binding.etPhone.hint = "Teléfono (opcional)"
@@ -46,7 +43,7 @@ class EditProfileActivity : AppCompatActivity() {
     }
 
     private fun loadCurrentUserData() {
-        // Cargar datos del usuario actual (datos de ejemplo basados en imagen 6)
+        // Cargar datos personales del usuario actual (datos de ejemplo basados en imagen)
         binding.etName.setText("Enrique")
         binding.etLastNamePaternal.setText("Pozos")
         binding.etLastNameMaternal.setText("González")
@@ -54,12 +51,12 @@ class EditProfileActivity : AppCompatActivity() {
         binding.etPhone.setText("8125785504")
         binding.etAddress.setText("Villa Rica #122")
         binding.etAlias.setText("@Pozos___")
-        binding.etPassword.setText("••••••••••")
 
-        // NO cargar la contraseña actual por seguridad
-        // binding.etPassword.setText("") // Vacío para que el usuario decida si cambiarla
+        // Los campos de contraseña se mantienen vacíos por seguridad
+        binding.etCurrentPassword.setText("")
+        binding.etNewPassword.setText("")
 
-        // Cargar imagen actual (simulada - Spider-Man de la imagen)
+        // Cargar imagen actual
         binding.ivProfileImage.setImageResource(R.mipmap.ic_launcher)
     }
 
@@ -70,22 +67,26 @@ class EditProfileActivity : AppCompatActivity() {
             // TODO: Implementar selector de imagen
         }
 
-        // Botón guardar cambios
-        binding.btnRegister.setOnClickListener {
-            saveProfileChanges()
+        // Botón actualizar datos personales
+        binding.btnUpdatePersonalData.setOnClickListener {
+            savePersonalDataChanges()
+        }
+
+        // Botón cambiar contraseña
+        binding.btnChangePassword.setOnClickListener {
+            changePassword()
         }
     }
 
-    private fun saveProfileChanges() {
+    private fun savePersonalDataChanges() {
         val nombre = binding.etName.text.toString().trim()
         val apellidoPaterno = binding.etLastNamePaternal.text.toString().trim()
         val apellidoMaterno = binding.etLastNameMaternal.text.toString().trim()
-        val password = binding.etPassword.text.toString().trim()
         val telefono = binding.etPhone.text.toString().trim()
         val direccion = binding.etAddress.text.toString().trim()
         val alias = binding.etAlias.text.toString().trim()
 
-        // Validaciones básicas
+        // Validaciones para datos personales
         if (nombre.isEmpty()) {
             binding.etName.error = "El nombre es requerido"
             binding.etName.requestFocus()
@@ -117,17 +118,55 @@ class EditProfileActivity : AppCompatActivity() {
             return
         }
 
-        // Validar contraseña SOLO si se está cambiando
-        if (password.isNotEmpty()) {
-            if (!isValidPassword(password)) {
-                binding.etPassword.error = "La contraseña debe tener mínimo 10 caracteres, una mayúscula, una minúscula y un número"
-                binding.etPassword.requestFocus()
-                return
-            }
+        // Simular guardado exitoso de datos personales
+        performPersonalDataUpdate()
+    }
+
+    private fun changePassword() {
+        val currentPassword = binding.etCurrentPassword.text.toString().trim()
+        val newPassword = binding.etNewPassword.text.toString().trim()
+
+        // Validaciones para contraseña
+        if (currentPassword.isEmpty()) {
+            binding.etCurrentPassword.error = "Ingresa tu contraseña actual"
+            binding.etCurrentPassword.requestFocus()
+            return
         }
 
-        // Simular guardado exitoso
-        performSaveChanges(password.isNotEmpty())
+        if (newPassword.isEmpty()) {
+            binding.etNewPassword.error = "Ingresa la nueva contraseña"
+            binding.etNewPassword.requestFocus()
+            return
+        }
+
+        if (currentPassword == newPassword) {
+            binding.etNewPassword.error = "La nueva contraseña debe ser diferente a la actual"
+            binding.etNewPassword.requestFocus()
+            return
+        }
+
+        // Validar formato de nueva contraseña
+        if (!isValidPassword(newPassword)) {
+            binding.etNewPassword.error = "La contraseña debe tener mínimo 10 caracteres, una mayúscula, una minúscula y un número"
+            binding.etNewPassword.requestFocus()
+            return
+        }
+
+        // TODO: Aquí validarías que la contraseña actual sea correcta con tu sistema de autenticación
+        if (!validateCurrentPassword(currentPassword)) {
+            binding.etCurrentPassword.error = "La contraseña actual es incorrecta"
+            binding.etCurrentPassword.requestFocus()
+            return
+        }
+
+        // Simular cambio exitoso de contraseña
+        performPasswordChange()
+    }
+
+    private fun validateCurrentPassword(currentPassword: String): Boolean {
+        // TODO: Implementar validación real con tu sistema de autenticación
+        // Por ahora simulamos que es válida
+        return true
     }
 
     private fun isValidPassword(password: String): Boolean {
@@ -148,25 +187,44 @@ class EditProfileActivity : AppCompatActivity() {
         return hasUpper && hasLower && hasDigit
     }
 
-    private fun performSaveChanges(passwordChanged: Boolean) {
-        // Mostrar loading
-        binding.btnRegister.isEnabled = false
-        binding.btnRegister.text = "Guardando..."
+    private fun performPersonalDataUpdate() {
+        // Mostrar loading en botón de datos personales
+        binding.btnUpdatePersonalData.isEnabled = false
+        binding.btnUpdatePersonalData.text = "Actualizando..."
 
-        // Mensaje específico según lo que se cambió
-        val message = if (passwordChanged) {
-            "¡Perfil y contraseña actualizados correctamente!"
-        } else {
-            "¡Perfil actualizado correctamente!"
-        }
+        // Simular delay de actualización
+        binding.btnUpdatePersonalData.postDelayed({
+            // Restaurar botón
+            binding.btnUpdatePersonalData.isEnabled = true
+            binding.btnUpdatePersonalData.text = "Actualizar Datos Personales"
 
-        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "¡Datos personales actualizados correctamente!", Toast.LENGTH_LONG).show()
 
-        // TODO: Aquí actualizarías los datos en tu sistema (API, UserManager, etc.)
-        // if (passwordChanged) { // Actualizar contraseña }
+            // TODO: Aquí actualizarías los datos personales en tu sistema (API, UserManager, etc.)
 
-        // Volver a la pantalla anterior
-        finish()
+        }, 1500)
+    }
+
+    private fun performPasswordChange() {
+        // Mostrar loading en botón de contraseña
+        binding.btnChangePassword.isEnabled = false
+        binding.btnChangePassword.text = "Cambiando..."
+
+        // Simular delay de actualización
+        binding.btnChangePassword.postDelayed({
+            // Restaurar botón
+            binding.btnChangePassword.isEnabled = true
+            binding.btnChangePassword.text = "Cambiar Contraseña"
+
+            // Limpiar campos de contraseña por seguridad
+            binding.etCurrentPassword.setText("")
+            binding.etNewPassword.setText("")
+
+            Toast.makeText(this, "¡Contraseña cambiada correctamente!", Toast.LENGTH_LONG).show()
+
+            // TODO: Aquí actualizarías la contraseña en tu sistema (API, UserManager, etc.)
+
+        }, 1500)
     }
 
     override fun onSupportNavigateUp(): Boolean {

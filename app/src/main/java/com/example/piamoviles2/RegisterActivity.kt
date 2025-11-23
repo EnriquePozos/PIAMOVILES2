@@ -54,6 +54,8 @@ class RegisterActivity : AppCompatActivity() {
                 // Convertir a Base64 para envío
                 selectedImageBase64 = bitmapToBase64(selectedImageBitmap!!)
 
+
+
                 android.util.Log.d("IMAGE_DEBUG", "Imagen seleccionada y procesada")
                 android.util.Log.d("IMAGE_DEBUG", "Base64 length: ${selectedImageBase64?.length}")
 
