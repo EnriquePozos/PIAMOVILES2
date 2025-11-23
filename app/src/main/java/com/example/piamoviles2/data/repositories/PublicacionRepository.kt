@@ -3,6 +3,7 @@ package com.example.piamoviles2.data.repositories
 import com.example.piamoviles2.data.api.ApiService
 import com.example.piamoviles2.data.models.*
 import com.example.piamoviles2.data.network.NetworkConfig
+import com.example.piamoviles2.Post // ✅ AGREGAR IMPORT
 import retrofit2.Response
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -75,7 +76,7 @@ class PublicacionRepository(
     }
 
     // ============================================
-    // OBTENER FEED DE PUBLICACIONES
+    // OBTENER FEED DE PUBLICACIONES (ORIGINAL)
     // ============================================
     suspend fun obtenerFeedPublicaciones(token: String): Result<List<PublicacionListFeed>> {
         return try {
@@ -102,6 +103,54 @@ class PublicacionRepository(
         }
     }
 
+    // ============================================
+// ✅ NUEVO: OBTENER FEED CON CONVERSIÓN A POST
+// ============================================
+    suspend fun obtenerFeedConvertido(token: String, currentUserId: String): Result<List<Post>> {
+        return try {
+            android.util.Log.d("PUBLICACION_REPO_DEBUG", "=== obtenerFeedConvertido ===")
+            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Current User ID: $currentUserId")
+
+            val authHeader = "Bearer $token"
+            val response = apiService.obtenerFeedPublicaciones(authHeader)
+
+            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Response code: ${response.code()}")
+
+            if (response.isSuccessful) {
+                response.body()?.let { feedList ->
+                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "✅ Feed obtenido: ${feedList.size} publicaciones")
+
+                    // Convertir PublicacionListFeed a Post
+                    val posts = feedList.mapIndexed { index, publicacion ->
+                        Post(
+                            id = (publicacion.id.hashCode().takeIf { it > 0 } ?: (1000 + index)), // ID local
+                            apiId = publicacion.id, // ✅ AGREGAR: ID real de la API
+                            title = publicacion.titulo,
+                            description = publicacion.descripcion ?: "",
+                            imageUrl = publicacion.imagenPreview ?: "default_recipe",
+                            author = "@${publicacion.autorAlias ?: "Usuario"}",
+                            createdAt = formatearFecha(publicacion.fechaPublicacion),
+                            isOwner = publicacion.idAutor == currentUserId,
+                            isFavorite = false, // TODO: Implementar lógica de favoritos
+                            isDraft = false, // Solo publicadas en el feed
+                            likesCount = publicacion.totalReacciones,
+                            commentsCount = publicacion.totalComentarios
+                        )
+                    }
+
+                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "✅ Convertido a ${posts.size} Posts con API IDs")
+                    Result.success(posts)
+                } ?: Result.failure(Exception("Respuesta vacía del servidor"))
+            } else {
+                val errorMsg = parseErrorMessage(response)
+                android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Error al obtener feed: $errorMsg")
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Exception: ${e.message}")
+            Result.failure(e)
+        }
+    }
     // ============================================
     // OBTENER PUBLICACIÓN POR ID
     // ============================================
@@ -241,6 +290,105 @@ class PublicacionRepository(
         } catch (e: Exception) {
             android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Exception: ${e.message}")
             Result.failure(e)
+        }
+    }
+
+    // ============================================
+// ✅ NUEVO: OBTENER PUBLICACIONES USUARIO CONVERTIDAS A POST
+// ============================================
+    suspend fun obtenerPublicacionesUsuarioConvertidas(
+        idAutor: String,
+        incluirBorradores: Boolean = false,
+        token: String
+    ): Result<List<Post>> {
+        return try {
+            android.util.Log.d("PUBLICACION_REPO_DEBUG", "=== obtenerPublicacionesUsuarioConvertidas ===")
+
+            // Obtener publicaciones del usuario
+            val result = obtenerPublicacionesUsuario(idAutor, incluirBorradores, token)
+
+            result.fold(
+                onSuccess = { publicacionesList ->
+                    // Convertir a Post
+                    val posts = publicacionesList.mapIndexed { index, publicacion ->
+                        Post(
+                            id = (publicacion.id.hashCode().takeIf { it > 0 } ?: (2000 + index)),
+                            apiId = publicacion.id, // ✅ AGREGAR: ID real de la API
+                            title = publicacion.titulo,
+                            description = publicacion.descripcion ?: "",
+                            imageUrl = publicacion.imagenPreview ?: "default_recipe",
+                            author = "@${publicacion.autorAlias ?: "Usuario"}",
+                            createdAt = formatearFecha(publicacion.fechaPublicacion),
+                            isOwner = true, // Siempre true para publicaciones del usuario
+                            isFavorite = false, // TODO: Implementar lógica de favoritos
+                            isDraft = publicacion.estatus == "borrador",
+                            likesCount = publicacion.totalReacciones,
+                            commentsCount = publicacion.totalComentarios
+                        )
+                    }
+
+                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "✅ Convertidas ${posts.size} publicaciones de usuario con API IDs")
+                    Result.success(posts)
+                },
+                onFailure = { error ->
+                    Result.failure(error)
+                }
+            )
+        } catch (e: Exception) {
+            android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Exception: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    // ============================================
+    // ✅ HELPER PARA FORMATEAR FECHAS
+    // ============================================
+    private fun formatearFecha(fechaISO: String?): String {
+        return try {
+            if (fechaISO.isNullOrEmpty()) {
+                "Fecha no disponible"
+            } else {
+                // Convertir de formato ISO a formato legible
+                // "2025-11-23T10:30:00" -> "23/11/2025 10:30"
+                val partes = fechaISO.split("T")
+                if (partes.size == 2) {
+                    val fechaParte = partes[0] // "2025-11-23"
+                    val horaParte = partes[1] // "10:30:00"
+
+                    // Convertir fecha
+                    val fechaArray = fechaParte.split("-")
+                    if (fechaArray.size == 3) {
+                        val año = fechaArray[0]
+                        val mes = fechaArray[1]
+                        val dia = fechaArray[2]
+
+                        // Convertir hora
+                        val hora = horaParte.substring(0, 5) // Solo HH:mm
+
+                        "$dia/$mes/$año $hora"
+                    } else {
+                        fechaISO
+                    }
+                } else {
+                    fechaISO
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("PUBLICACION_REPO_DEBUG", "Error al formatear fecha: $fechaISO")
+            "Fecha inválida"
+        }
+    }
+
+    // ============================================
+    // ✅ HELPER PARA MANEJAR IMÁGENES POR DEFECTO
+    // ============================================
+    private fun getDefaultImageForRecipe(titulo: String): String {
+        return when {
+            titulo.contains("taco", ignoreCase = true) -> "sample_tacos"
+            titulo.contains("ensalada", ignoreCase = true) -> "sample_salad"
+            titulo.contains("pasta", ignoreCase = true) -> "sample_pasta"
+            titulo.contains("sandwich", ignoreCase = true) -> "sample_sandwich"
+            else -> "default_recipe"
         }
     }
 

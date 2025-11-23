@@ -24,6 +24,7 @@ class PostDetailActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_POST_ID = "extra_post_id"
+        const val EXTRA_POST_API_ID = "extra_post_id"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -179,20 +180,43 @@ class PostDetailActivity : AppCompatActivity() {
 
     private fun loadPostData() {
         val postId = intent.getIntExtra(EXTRA_POST_ID, -1)
-        if (postId == -1) {
-            Toast.makeText(this, "Error: Post no encontrado", Toast.LENGTH_SHORT).show()
+        val apiId = intent.getStringExtra(EXTRA_POST_API_ID)
+
+        android.util.Log.d("POST_DETAIL_DEBUG", "Post ID local: $postId")
+        android.util.Log.d("POST_DETAIL_DEBUG", "Post API ID: $apiId")
+
+        if (postId != -1) {
+            // TODO: Usar apiId para hacer petición real a la API en el futuro
+            // if (!apiId.isNullOrEmpty()) {
+            //     loadPostFromApi(apiId)
+            // } else {
+            // Fallback con datos de ejemplo
+            val samplePost = Post.getSamplePosts().find { it.id == postId }
+            if (samplePost != null) {
+                currentPost = samplePost
+                updatePostUI()
+            } else {
+                android.util.Log.e("POST_DETAIL_DEBUG", "Post no encontrado con ID: $postId")
+                Toast.makeText(this, "Publicación no encontrada", Toast.LENGTH_SHORT).show()
+                finish()
+            }
+            // }
+        } else {
+            android.util.Log.e("POST_DETAIL_DEBUG", "ID de post inválido")
+            Toast.makeText(this, "Error al cargar publicación", Toast.LENGTH_SHORT).show()
             finish()
-            return
         }
+    }
 
-        // Buscar el post por ID (usando datos de ejemplo)
-        currentPost = Post.getSamplePosts().find { it.id == postId }
-
+    private fun updatePostUI() {
         currentPost?.let { post ->
-            displayPostData(post)
-        } ?: run {
-            Toast.makeText(this, "Error: Post no encontrado", Toast.LENGTH_SHORT).show()
-            finish()
+            // TODO: Actualizar UI con los datos del post
+            // Por ejemplo:
+            // binding.tvPostTitle.text = post.title
+            // binding.tvPostDescription.text = post.description
+            // binding.tvPostAuthor.text = post.author
+
+            android.util.Log.d("POST_DETAIL_DEBUG", "UI actualizada para: ${post.title}")
         }
     }
 
