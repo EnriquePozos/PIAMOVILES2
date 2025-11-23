@@ -194,7 +194,7 @@
                     android:nestedScrollingEnabled="false"
                     tools:listitem="@layout/item_post" />
 
-                <!-- Mensaje cuando no hay recetas -->
+                <!-- Mensaje cuando no hay recetass -->
                 <LinearLayout
                     android:id="@+id/layoutEmptyPosts"
                     android:layout_width="match_parent"
