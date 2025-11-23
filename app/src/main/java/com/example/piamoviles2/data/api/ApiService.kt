@@ -81,13 +81,59 @@ suspend fun loginUsuario(
     ): Response<CambiarContrasenaResponse>
 
 
+// ============================================
+// ENDPOINTS DE PUBLICACIONES
+// ============================================
 
-    // PUBLICACIONES (para futuras implementaciones)
+    // Crear nueva publicación con archivos
+    @Multipart
+    @POST("api/publicaciones/crear_publicacion")
+    suspend fun crearPublicacion(
+        @Part("titulo") titulo: RequestBody,
+        @Part("descripcion") descripcion: RequestBody?,
+        @Part("estatus") estatus: RequestBody,
+        @Part("id_autor") idAutor: RequestBody,
+        @Part archivos: List<MultipartBody.Part>?,
+        @Header("Authorization") authorization: String
+    ): Response<PublicacionDetalle>
 
-    @GET("api/publicaciones/feed")
-    suspend fun obtenerFeed(
+    // Obtener feed de publicaciones
+    @GET("api/publicaciones/get_feed")
+    suspend fun obtenerFeedPublicaciones(
+        @Header("Authorization") authorization: String
+    ): Response<List<PublicacionListFeed>>
+
+    // Obtener publicación por ID
+    @GET("api/publicaciones/{id_publicacion}")
+    suspend fun obtenerPublicacionPorId(
+        @Path("id_publicacion") idPublicacion: String,
+        @Header("Authorization") authorization: String
+    ): Response<PublicacionDetalle>
+
+    // Actualizar publicación existente
+    @Multipart
+    @PUT("api/publicaciones/update_pub/{id_publicacion}")
+    suspend fun actualizarPublicacion(
+        @Path("id_publicacion") idPublicacion: String,
+        @Part("titulo") titulo: RequestBody?,
+        @Part("descripcion") descripcion: RequestBody?,
+        @Part("estatus") estatus: RequestBody?,
+        @Part archivos: List<MultipartBody.Part>?,
+        @Header("Authorization") authorization: String
+    ): Response<PublicacionDetalle>
+
+    // Eliminar publicación
+    @DELETE("api/publicaciones/delete_pub/{id_publicacion}")
+    suspend fun eliminarPublicacion(
+        @Path("id_publicacion") idPublicacion: String,
+        @Header("Authorization") authorization: String
+    ): Response<PublicacionDeletedResponse>
+
+    // Obtener publicaciones del usuario
+    @GET("api/publicaciones/usuario/{id_autor}")
+    suspend fun obtenerPublicacionesUsuario(
+        @Path("id_autor") idAutor: String,
         @Header("Authorization") authorization: String,
-        @Query("page") page: Int = 1,
-        @Query("size") size: Int = 20
-    ): Response<List<PublicacionResponse>>
+        @Query("incluir_borradores") incluirBorradores: Boolean = false
+    ): Response<List<PublicacionListFeed>>
 }

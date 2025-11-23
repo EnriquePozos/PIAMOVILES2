@@ -125,3 +125,81 @@ data class ApiResponse<T>(
 data class ErrorResponse(
     val detail: String
 )
+
+// ============================================
+// MULTIMEDIA API MODELS
+// ============================================
+data class MultimediaResponse(
+    val id: String,
+    val url: String,
+    val tipo: String, // "imagen" o "video"
+    @SerializedName("fecha_subida") val fechaSubida: String,
+    @SerializedName("id_publicacion") val idPublicacion: String
+)
+
+// ============================================
+// PUBLICACIONES REQUEST MODELS
+// ============================================
+data class CrearPublicacionRequest(
+    val titulo: String,
+    val descripcion: String?,
+    val estatus: String, // "borrador" o "publicada"
+    @SerializedName("id_autor") val idAutor: String
+)
+
+data class ActualizarPublicacionRequest(
+    val titulo: String?,
+    val descripcion: String?,
+    val estatus: String? // "borrador" o "publicada"
+)
+
+// ============================================
+// PUBLICACIONES RESPONSE MODELS DETALLADOS
+// ============================================
+data class PublicacionDetalle(
+    val id: String,
+    val titulo: String,
+    val descripcion: String?,
+    @SerializedName("fecha_creacion") val fechaCreacion: String,
+    @SerializedName("fecha_publicacion") val fechaPublicacion: String?,
+    @SerializedName("fecha_modificacion") val fechaModificacion: String?,
+    val estatus: String,
+    @SerializedName("id_autor") val idAutor: String,
+    @SerializedName("autor_alias") val autorAlias: String?,
+    @SerializedName("autor_foto") val autorFoto: String?,
+    @SerializedName("total_comentarios") val totalComentarios: Int = 0,
+    @SerializedName("total_reacciones") val totalReacciones: Int = 0,
+    @SerializedName("total_favoritos") val totalFavoritos: Int = 0,
+    val multimedia: List<MultimediaResponse> = emptyList()
+)
+
+data class PublicacionListFeed(
+    val id: String,
+    val titulo: String,
+    val descripcion: String?,
+    @SerializedName("fecha_publicacion") val fechaPublicacion: String?,
+    val estatus: String,
+    @SerializedName("id_autor") val idAutor: String,
+    @SerializedName("autor_alias") val autorAlias: String?,
+    @SerializedName("autor_foto") val autorFoto: String?,
+    @SerializedName("total_comentarios") val totalComentarios: Int = 0,
+    @SerializedName("total_reacciones") val totalReacciones: Int = 0,
+    @SerializedName("imagen_preview") val imagenPreview: String? // Primera imagen
+)
+
+// ============================================
+// SUCCESS RESPONSE MODELS
+// ============================================
+data class PublicacionCreatedResponse(
+    val message: String,
+    val publicacion: PublicacionDetalle
+)
+
+data class PublicacionUpdatedResponse(
+    val message: String,
+    val publicacion: PublicacionDetalle
+)
+
+data class PublicacionDeletedResponse(
+    val message: String
+)

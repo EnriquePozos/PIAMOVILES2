@@ -4,7 +4,6 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.View
-import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AlertDialog
@@ -12,6 +11,11 @@ import androidx.appcompat.app.AppCompatActivity
 import com.example.piamoviles2.databinding.ActivityCreatePostBinding
 import java.text.SimpleDateFormat
 import java.util.*
+import com.example.piamoviles2.data.repositories.PublicacionRepository
+import com.example.piamoviles2.utils.SessionManager
+import kotlinx.coroutines.*
+import java.io.File
+import java.io.FileOutputStream
 
 class CreatePostActivity : AppCompatActivity() {
 
@@ -26,10 +30,19 @@ class CreatePostActivity : AppCompatActivity() {
     private var isEditMode = false
     private var editingPostId = -1
 
+    // ============================================
+    // VARIABLES PARA API INTEGRATION
+    // ============================================
+    private lateinit var publicacionRepository: PublicacionRepository
+    private lateinit var sessionManager: SessionManager
+    private val selectedImageFiles = mutableListOf<File>()
+    private var isLoading = false
+
     companion object {
         const val EXTRA_DRAFT_ID = "extra_draft_id"
         const val EXTRA_POST_ID = "extra_post_id"
         private const val MAX_IMAGES = 3
+        private const val TAG = "CREATE_POST_DEBUG"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,12 +51,43 @@ class CreatePostActivity : AppCompatActivity() {
         binding = ActivityCreatePostBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // ✅ CÓDIGO EXISTENTE
         initializeImages()
         setupHeader()
         setupImagePicker()
         setupClickListeners()
         setupBackPressedHandler()
         checkEditMode()
+
+        // ============================================
+        // ✅ NUEVAS FUNCIONALIDADES API
+        // ============================================
+        setupApiComponents()
+        loadUserData()
+
+        android.util.Log.d(TAG, "CreatePostActivity iniciada")
+    }
+
+    // ============================================
+    // NUEVOS MÉTODOS DE SETUP
+    // ============================================
+    private fun setupApiComponents() {
+        publicacionRepository = PublicacionRepository()
+        sessionManager = SessionManager(this)
+    }
+
+    private fun loadUserData() {
+        if (!sessionManager.isLoggedIn()) {
+            Toast.makeText(this, "Error: Sesión no válida", Toast.LENGTH_LONG).show()
+            finish()
+            return
+        }
+
+        val token = sessionManager.getAccessToken()
+        val currentUser = sessionManager.getCurrentUser()
+
+        android.util.Log.d(TAG, "Token: ${if (token?.isNotEmpty() == true) "✅ Cargado" else "❌ Vacío"}")
+        android.util.Log.d(TAG, "User ID: ${currentUser?.id}")
     }
 
     private fun initializeImages() {
@@ -102,7 +146,6 @@ class CreatePostActivity : AppCompatActivity() {
     }
 
     private fun setupBackPressedHandler() {
-        // ✅ SOLUCIÓN: Usar OnBackPressedDispatcher moderno
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 handleBackNavigation()
@@ -128,7 +171,7 @@ class CreatePostActivity : AppCompatActivity() {
                     }
                 }
                 .setNegativeButton("Salir sin guardar") { _, _ ->
-                    finish()
+                    cleanupAndFinish()
                 }
                 .setNeutralButton("Cancelar", null)
                 .show()
@@ -157,10 +200,6 @@ class CreatePostActivity : AppCompatActivity() {
         post?.let {
             binding.etRecipeTitle.setText(it.title)
             binding.etRecipeDescription.setText(it.description)
-
-            // En una app real, aquí cargarías las imágenes desde URLs o storage local
-            // Por ahora simulamos que tiene al menos una imagen
-            // loadImageFromUrl(it.imageUrl, 0)
         }
     }
 
@@ -191,6 +230,46 @@ class CreatePostActivity : AppCompatActivity() {
         val resizedBitmap = ImagePickerHelper.resizeBitmap(bitmap)
         selectedImages[currentImageSlot] = resizedBitmap
         updateImageUI(currentImageSlot, resizedBitmap)
+
+        // ============================================
+        // ✅ NUEVO: CONVERTIR BITMAP A FILE PARA API
+        // ============================================
+        convertBitmapToFile(resizedBitmap, currentImageSlot)
+    }
+
+    // ============================================
+    // NUEVO MÉTODO PARA CONVERTIR BITMAP A FILE
+    // ============================================
+    private fun convertBitmapToFile(bitmap: Bitmap, slot: Int) {
+        try {
+            // Crear archivo temporal
+            val tempFile = File(cacheDir, "image_slot_${slot}_${System.currentTimeMillis()}.jpg")
+
+            // Convertir bitmap a archivo
+            FileOutputStream(tempFile).use { out ->
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+            }
+
+            // Agregar a la lista de archivos (reemplazar si ya existe para este slot)
+            // Primero remover archivo anterior del slot si existe
+            selectedImageFiles.removeAll { file ->
+                if (file.name.contains("image_slot_${slot}_")) {
+                    file.delete() // Eliminar archivo anterior
+                    true
+                } else {
+                    false
+                }
+            }
+
+            // Agregar nuevo archivo
+            selectedImageFiles.add(tempFile)
+
+            android.util.Log.d(TAG, "✅ Imagen convertida a archivo: ${tempFile.name}")
+            android.util.Log.d(TAG, "Total archivos: ${selectedImageFiles.size}")
+
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "❌ Error al convertir bitmap a archivo", e)
+        }
     }
 
     private fun updateImageUI(slot: Int, bitmap: Bitmap?) {
@@ -237,6 +316,20 @@ class CreatePostActivity : AppCompatActivity() {
     private fun removeImage(slot: Int) {
         selectedImages[slot] = null
         updateImageUI(slot, null)
+
+        // ============================================
+        // ✅ NUEVO: REMOVER ARCHIVO TAMBIÉN
+        // ============================================
+        selectedImageFiles.removeAll { file ->
+            if (file.name.contains("image_slot_${slot}_")) {
+                file.delete() // Eliminar archivo del cache
+                android.util.Log.d(TAG, "Archivo eliminado: ${file.name}")
+                true
+            } else {
+                false
+            }
+        }
+
         Toast.makeText(this, "Imagen eliminada", Toast.LENGTH_SHORT).show()
     }
 
@@ -271,24 +364,65 @@ class CreatePostActivity : AppCompatActivity() {
         return true
     }
 
+    // ============================================
+    // MÉTODO SAVEEDRAFT CON API REAL
+    // ============================================
     private fun saveDraft() {
-        if (!validateForm()) return
+        if (!validateForm() || isLoading) return
 
         val title = binding.etRecipeTitle.text.toString().trim()
         val description = binding.etRecipeDescription.text.toString().trim()
 
-        // Crear/actualizar borrador
-        val draftPost = createPostFromForm(title, description, isDraft = true)
+        val currentUser = sessionManager.getCurrentUser()
+        val token = sessionManager.getAccessToken()
 
-        // TODO: En una app real, guardarías en base de datos local
-        // draftRepository.saveDraft(draftPost)
+        if (currentUser == null || token == null) {
+            Toast.makeText(this, "Sesión no válida", Toast.LENGTH_SHORT).show()
+            return
+        }
 
-        Toast.makeText(this, "Borrador guardado correctamente", Toast.LENGTH_SHORT).show()
-        finish()
+        setLoading(true)
+
+        // Llamada a API con corrutinas
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    publicacionRepository.crearPublicacion(
+                        titulo = title,
+                        descripcion = description,
+                        estatus = "borrador",
+                        idAutor = currentUser.id,
+                        imagenes = selectedImageFiles.ifEmpty { null },
+                        token = token
+                    )
+                }
+
+                result.fold(
+                    onSuccess = { publicacion ->
+                        android.util.Log.d(TAG, "✅ Borrador guardado: ${publicacion.id}")
+                        Toast.makeText(this@CreatePostActivity, "Borrador guardado correctamente", Toast.LENGTH_SHORT).show()
+                        cleanupAndFinish()
+                    },
+                    onFailure = { error ->
+                        android.util.Log.e(TAG, "❌ Error al guardar borrador", error)
+                        Toast.makeText(this@CreatePostActivity, "Error al guardar borrador: ${error.message}", Toast.LENGTH_LONG).show()
+                    }
+                )
+
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "❌ Exception al guardar borrador", e)
+                Toast.makeText(this@CreatePostActivity, "Error inesperado: ${e.message}", Toast.LENGTH_LONG).show()
+            } finally {
+                setLoading(false)
+            }
+        }
     }
 
+    // ============================================
+    // MÉTODO PUBLISHPOST CON API REAL
+    // ============================================
     private fun publishPost() {
-        if (!validateForm()) return
+        if (!validateForm() || isLoading) return
 
         val title = binding.etRecipeTitle.text.toString().trim()
         val description = binding.etRecipeDescription.text.toString().trim()
@@ -299,21 +433,100 @@ class CreatePostActivity : AppCompatActivity() {
             return
         }
 
-        // Crear/actualizar publicación
-        val post = createPostFromForm(title, description, isDraft = false)
+        val currentUser = sessionManager.getCurrentUser()
+        val token = sessionManager.getAccessToken()
 
-        // TODO: En una app real, subirías al servidor
-        // postRepository.publishPost(post)
+        if (currentUser == null || token == null) {
+            Toast.makeText(this, "Sesión no válida", Toast.LENGTH_SHORT).show()
+            return
+        }
 
-        Toast.makeText(this, "¡Receta publicada exitosamente!", Toast.LENGTH_LONG).show()
+        setLoading(true)
 
-        // Regresar al feed o perfil
-        val intent = Intent(this, FeedActivity::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
-        startActivity(intent)
+        // Llamada a API con corrutinas
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    publicacionRepository.crearPublicacion(
+                        titulo = title,
+                        descripcion = description,
+                        estatus = "publicada",
+                        idAutor = currentUser.id,
+                        imagenes = selectedImageFiles,
+                        token = token
+                    )
+                }
+
+                result.fold(
+                    onSuccess = { publicacion ->
+                        android.util.Log.d(TAG, "✅ Publicación creada: ${publicacion.id}")
+                        Toast.makeText(this@CreatePostActivity, "¡Receta publicada exitosamente!", Toast.LENGTH_LONG).show()
+
+                        // Regresar al feed
+                        val intent = Intent(this@CreatePostActivity, FeedActivity::class.java)
+                        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        startActivity(intent)
+                        cleanupAndFinish()
+                    },
+                    onFailure = { error ->
+                        android.util.Log.e(TAG, "❌ Error al publicar", error)
+                        Toast.makeText(this@CreatePostActivity, "Error al publicar: ${error.message}", Toast.LENGTH_LONG).show()
+                    }
+                )
+
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "❌ Exception al publicar", e)
+                Toast.makeText(this@CreatePostActivity, "Error inesperado: ${e.message}", Toast.LENGTH_LONG).show()
+            } finally {
+                setLoading(false)
+            }
+        }
+    }
+
+    // ============================================
+    // MÉTODOS AUXILIARES
+    // ============================================
+    private fun setLoading(loading: Boolean) {
+        isLoading = loading
+
+        // Deshabilitar botones durante carga
+        binding.btnSaveDraft.isEnabled = !loading
+        binding.btnPublish.isEnabled = !loading
+
+        // Cambiar texto de botones
+        if (loading) {
+            binding.btnSaveDraft.text = "Guardando..."
+            binding.btnPublish.text = "Publicando..."
+        } else {
+            binding.btnSaveDraft.text = "Guardar como borrador"
+            binding.btnPublish.text = "Publicar"
+        }
+
+        android.util.Log.d(TAG, "Loading state: $loading")
+    }
+
+    private fun cleanupAndFinish() {
+        // Limpiar archivos temporales
+        selectedImageFiles.forEach { file ->
+            try {
+                if (file.exists()) {
+                    file.delete()
+                    android.util.Log.d(TAG, "Archivo temporal eliminado: ${file.name}")
+                }
+            } catch (e: Exception) {
+                android.util.Log.w(TAG, "No se pudo eliminar archivo: ${file.name}")
+            }
+        }
+
+        // Limpiar lista
+        selectedImageFiles.clear()
+
         finish()
     }
 
+    // ============================================
+    // MÉTODOS LEGACY (MANTENIDOS PARA COMPATIBILIDAD)
+    // ============================================
     private fun createPostFromForm(title: String, description: String, isDraft: Boolean): Post {
         val currentTime = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())
         val timestamp = if (isDraft) "Guardado $currentTime" else currentTime
@@ -323,7 +536,7 @@ class CreatePostActivity : AppCompatActivity() {
             title = title,
             description = description,
             imageUrl = "user_recipe_${System.currentTimeMillis()}", // En una app real serían URLs
-            author = "@Pozos", // En una app real sería el usuario actual
+            author = "@${sessionManager.getCurrentUser()?.alias ?: "Usuario"}", // Usar alias real
             createdAt = timestamp,
             isOwner = true,
             isFavorite = false,
@@ -336,5 +549,11 @@ class CreatePostActivity : AppCompatActivity() {
     private fun generateNewId(): Int {
         // Generar ID único (en una app real sería manejado por la base de datos)
         return (3000..9999).random()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Asegurar limpieza al destruir la actividad
+        cleanupAndFinish()
     }
 }
