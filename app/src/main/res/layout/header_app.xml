@@ -2,6 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:background="#CAEDFF"
@@ -46,15 +47,18 @@
         android:layout_weight="1" />
 
     <!-- Icono de perfil (visible solo cuando sea necesario) -->
-    <ImageView
+    <de.hdodenhof.circleimageview.CircleImageView
         android:id="@+id/ivProfileIcon"
-        android:layout_width="36dp"
-        android:layout_height="36dp"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_alignParentEnd="true"
+        android:layout_centerVertical="true"
+        android:layout_marginEnd="16dp"
         android:src="@mipmap/ic_foto_perfil_round"
-        android:background="@drawable/circle_background"
-        android:contentDescription="Perfil de usuario"
+        android:visibility="gone"
         android:clickable="true"
         android:focusable="true"
-        android:visibility="gone" />
+        app:civ_border_color="#FFFFFF"
+        app:civ_border_width="1dp" />
 
 </LinearLayout>

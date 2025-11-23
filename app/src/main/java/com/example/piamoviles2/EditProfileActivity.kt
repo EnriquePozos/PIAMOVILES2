@@ -1,15 +1,33 @@
 package com.example.piamoviles2
 
+import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.example.piamoviles2.databinding.ActivityEditProfileBinding
+import com.example.piamoviles2.data.repositories.UserRepository
+import com.example.piamoviles2.utils.SessionManager
+import com.example.piamoviles2.utils.ImageUtils
+import kotlinx.coroutines.launch
+import java.io.ByteArrayOutputStream
 
 class EditProfileActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityEditProfileBinding
+    private lateinit var userRepository: UserRepository
+    private lateinit var sessionManager: SessionManager
+    private var currentUserId: String? = null
+    private var currentUserToken: String? = null
+
+    // ✅ MANEJO DE IMAGEN
+    private lateinit var imagePickerHelper: ImagePickerHelper
+    private var selectedImageBitmap: Bitmap? = null
+    private var selectedImageBase64: String? = null
+    private var hasImageChanged = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -17,8 +35,13 @@ class EditProfileActivity : AppCompatActivity() {
         binding = ActivityEditProfileBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        userRepository = UserRepository()
+        sessionManager = SessionManager(this)
+
         setupHeader()
+        setupImagePicker()
         setupFieldsForEdit()
+        loadUserCredentials()
         loadCurrentUserData()
         setupClickListeners()
     }
@@ -26,6 +49,29 @@ class EditProfileActivity : AppCompatActivity() {
     private fun setupHeader() {
         val headerView = findViewById<View>(R.id.headerApp)
         HeaderUtils.setupHeaderWithBackButton(this, headerView)
+    }
+
+    private fun setupImagePicker() {
+        imagePickerHelper = ImagePickerHelper(this) { bitmap ->
+            bitmap?.let {
+                // Redimensionar imagen para optimizar
+                selectedImageBitmap = ImagePickerHelper.resizeBitmap(it, 400, 400)
+
+                // Mostrar preview en ImageView
+                binding.ivProfileImage.setImageBitmap(selectedImageBitmap)
+
+                // Convertir a Base64 para envío
+                selectedImageBase64 = bitmapToBase64(selectedImageBitmap!!)
+                hasImageChanged = true
+
+                android.util.Log.d("EDIT_PROFILE_DEBUG", "Nueva imagen seleccionada")
+                android.util.Log.d("EDIT_PROFILE_DEBUG", "Base64 length: ${selectedImageBase64?.length}")
+
+                Toast.makeText(this, "Nueva imagen seleccionada", Toast.LENGTH_SHORT).show()
+            } ?: run {
+                Toast.makeText(this, "Error al seleccionar imagen", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun setupFieldsForEdit() {
@@ -42,29 +88,94 @@ class EditProfileActivity : AppCompatActivity() {
         binding.etAddress.hint = "Dirección (opcional)"
     }
 
+    private fun loadUserCredentials() {
+        // ✅ USAR SESSIONMANAGER EN LUGAR DE SHAREDPREFERENCES
+        if (!sessionManager.isLoggedIn()) {
+            Toast.makeText(this, "Error: Sesión no válida", Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
+
+        currentUserToken = sessionManager.getAccessToken()
+        val currentUser = sessionManager.getCurrentUser()
+        currentUserId = currentUser?.id
+
+        if (currentUserId == null || currentUserToken == null) {
+            Toast.makeText(this, "Error: No se pudieron cargar los datos de sesión", Toast.LENGTH_SHORT).show()
+            finish()
+        }
+
+        // ✅ LOGS PARA DEBUGGING
+        android.util.Log.d("EDIT_PROFILE_DEBUG", "User ID: $currentUserId")
+        android.util.Log.d("EDIT_PROFILE_DEBUG", "Token exists: ${currentUserToken != null}")
+        android.util.Log.d("EDIT_PROFILE_DEBUG", "Token length: ${currentUserToken?.length ?: 0}")
+    }
+
     private fun loadCurrentUserData() {
-        // Cargar datos personales del usuario actual (datos de ejemplo basados en imagen)
-        binding.etName.setText("Enrique")
-        binding.etLastNamePaternal.setText("Pozos")
-        binding.etLastNameMaternal.setText("González")
-        binding.etEmail.setText("enriquepozos@gmail.com") // Email bloqueado
-        binding.etPhone.setText("8125785504")
-        binding.etAddress.setText("Villa Rica #122")
-        binding.etAlias.setText("@Pozos___")
+        currentUserId?.let { userId ->
+            currentUserToken?.let { token ->
+                lifecycleScope.launch {
+                    try {
+                        // Mostrar loading
+                        showLoading(true)
 
-        // Los campos de contraseña se mantienen vacíos por seguridad
-        binding.etCurrentPassword.setText("")
-        binding.etNewPassword.setText("")
+                        val result = userRepository.obtenerPerfil(userId, token)
 
-        // Cargar imagen actual
-        binding.ivProfileImage.setImageResource(R.mipmap.ic_launcher)
+                        result.onSuccess { usuario ->
+                            runOnUiThread {
+                                // Cargar datos en la UI
+                                binding.etName.setText(usuario.nombre)
+                                binding.etLastNamePaternal.setText(usuario.apellidoPaterno)
+                                binding.etLastNameMaternal.setText(usuario.apellidoMaterno ?: "")
+                                binding.etEmail.setText(usuario.email)
+                                binding.etPhone.setText(usuario.telefono ?: "")
+                                binding.etAddress.setText(usuario.direccion ?: "")
+                                binding.etAlias.setText(usuario.alias)
+
+                                // ✅ CARGAR IMAGEN CON GLIDE
+                                ImageUtils.loadImage(
+                                    context = this@EditProfileActivity,
+                                    imageUrl = usuario.fotoPerfil,
+                                    imageView = binding.ivProfileImage,
+                                    placeholderResId = R.drawable.ic_add_photo
+                                )
+
+                                android.util.Log.d("EDIT_PROFILE_DEBUG", "Datos cargados correctamente")
+                                android.util.Log.d("EDIT_PROFILE_DEBUG", "URL imagen: ${usuario.fotoPerfil}")
+                            }
+                        }.onFailure { error ->
+                            runOnUiThread {
+                                Toast.makeText(
+                                    this@EditProfileActivity,
+                                    "Error al cargar perfil: ${error.message}",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                                android.util.Log.e("EDIT_PROFILE_DEBUG", "Error: ${error.message}")
+                            }
+                        }
+                    } catch (e: Exception) {
+                        runOnUiThread {
+                            Toast.makeText(
+                                this@EditProfileActivity,
+                                "Error inesperado: ${e.message}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            android.util.Log.e("EDIT_PROFILE_DEBUG", "Exception: ${e.message}")
+                        }
+                    } finally {
+                        runOnUiThread {
+                            showLoading(false)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private fun setupClickListeners() {
-        // Selector de imagen de perfil
+        // ✅ SELECTOR DE IMAGEN CON DIALOG
         binding.ivProfileImage.setOnClickListener {
-            Toast.makeText(this, "Cambiar imagen (próximamente)", Toast.LENGTH_SHORT).show()
-            // TODO: Implementar selector de imagen
+            showImagePickerDialog()
         }
 
         // Botón actualizar datos personales
@@ -76,6 +187,37 @@ class EditProfileActivity : AppCompatActivity() {
         binding.btnChangePassword.setOnClickListener {
             changePassword()
         }
+    }
+
+    private fun showImagePickerDialog() {
+        val options = arrayOf("Tomar foto", "Seleccionar de galería", "Cancelar")
+
+        val builder = androidx.appcompat.app.AlertDialog.Builder(this)
+        builder.setTitle("Cambiar imagen de perfil")
+        builder.setItems(options) { dialog, which ->
+            when (which) {
+                0 -> {
+                    // Tomar foto
+                    imagePickerHelper.openCamera()
+                }
+                1 -> {
+                    // Seleccionar de galería
+                    imagePickerHelper.openGallery()
+                }
+                2 -> {
+                    // Cancelar
+                    dialog.dismiss()
+                }
+            }
+        }
+        builder.show()
+    }
+
+    private fun bitmapToBase64(bitmap: Bitmap): String {
+        val byteArrayOutputStream = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 80, byteArrayOutputStream)
+        val byteArray = byteArrayOutputStream.toByteArray()
+        return android.util.Base64.encodeToString(byteArray, android.util.Base64.DEFAULT)
     }
 
     private fun savePersonalDataChanges() {
@@ -111,15 +253,106 @@ class EditProfileActivity : AppCompatActivity() {
             return
         }
 
-        // Validar formato del alias
-        if (!alias.startsWith("@")) {
-            binding.etAlias.error = "El alias debe comenzar con @"
-            binding.etAlias.requestFocus()
-            return
-        }
 
-        // Simular guardado exitoso de datos personales
-        performPersonalDataUpdate()
+
+        // Llamar método con imagen
+        performPersonalDataUpdateWithImage(nombre, apellidoPaterno, apellidoMaterno, telefono, direccion, alias)
+    }
+
+    private fun performPersonalDataUpdateWithImage(
+        nombre: String,
+        apellidoPaterno: String,
+        apellidoMaterno: String,
+        telefono: String,
+        direccion: String,
+        alias: String
+    ) {
+        currentUserId?.let { userId ->
+            currentUserToken?.let { token ->
+                lifecycleScope.launch {
+                    try {
+                        runOnUiThread {
+                            binding.btnUpdatePersonalData.isEnabled = false
+                            if (hasImageChanged) {
+                                binding.btnUpdatePersonalData.text = "Actualizando datos e imagen..."
+                            } else {
+                                binding.btnUpdatePersonalData.text = "Actualizando datos..."
+                            }
+                        }
+
+                        // ✅ DECIDIR QUE MÉTODO USAR SEGÚN SI HAY IMAGEN NUEVA
+                        val result = if (hasImageChanged && selectedImageBase64 != null) {
+                            // Actualizar con imagen
+                            userRepository.actualizarUsuarioConImagen(
+                                userId, token, nombre, apellidoPaterno, apellidoMaterno,
+                                telefono, direccion, alias, selectedImageBase64!!
+                            )
+                        } else {
+                            // Actualizar sin imagen
+                            userRepository.actualizarDatosPersonales(
+                                userId, token, nombre, apellidoPaterno, apellidoMaterno,
+                                telefono, direccion, alias
+                            )
+                        }
+
+                        result.onSuccess { usuarioActualizado ->
+                            runOnUiThread {
+                                // ✅ ACTUALIZAR SESSIONMANAGER CON LOS NUEVOS DATOS
+                                val currentToken = sessionManager.getAccessToken()
+
+                                if (currentToken != null) {
+                                    sessionManager.saveLoginData(currentToken, usuarioActualizado)
+                                    android.util.Log.d("EDIT_PROFILE_DEBUG", "SessionManager actualizado")
+                                    android.util.Log.d("EDIT_PROFILE_DEBUG", "Nueva imagen URL: ${usuarioActualizado.fotoPerfil}")
+
+                                    // ✅ ACTUALIZAR IMAGEN EN LA PANTALLA ACTUAL
+                                    ImageUtils.loadImage(
+                                        context = this@EditProfileActivity,
+                                        imageUrl = usuarioActualizado.fotoPerfil,
+                                        imageView = binding.ivProfileImage,
+                                        placeholderResId = R.drawable.ic_add_photo
+                                    )
+
+                                    hasImageChanged = false // Reset flag
+                                }
+
+                                Toast.makeText(
+                                    this@EditProfileActivity,
+                                    "¡Perfil actualizado correctamente!",
+                                    Toast.LENGTH_LONG
+                                ).show()
+
+                                // Finalizar activity para que ProfileActivity se refresque
+                                finish()
+                            }
+                        }.onFailure { error ->
+                            runOnUiThread {
+                                Toast.makeText(
+                                    this@EditProfileActivity,
+                                    "Error: ${error.message}",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                                android.util.Log.e("EDIT_PROFILE_DEBUG", "Error al actualizar: ${error.message}")
+                            }
+                        }
+                    } catch (e: Exception) {
+                        runOnUiThread {
+                            Toast.makeText(
+                                this@EditProfileActivity,
+                                "Error inesperado: ${e.message}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            android.util.Log.e("EDIT_PROFILE_DEBUG", "Exception: ${e.message}")
+                        }
+                    } finally {
+                        runOnUiThread {
+                            binding.btnUpdatePersonalData.isEnabled = true
+                            binding.btnUpdatePersonalData.text = "Actualizar Datos Personales"
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private fun changePassword() {
@@ -152,21 +385,61 @@ class EditProfileActivity : AppCompatActivity() {
             return
         }
 
-        // TODO: Aquí validarías que la contraseña actual sea correcta con tu sistema de autenticación
-        if (!validateCurrentPassword(currentPassword)) {
-            binding.etCurrentPassword.error = "La contraseña actual es incorrecta"
-            binding.etCurrentPassword.requestFocus()
-            return
-        }
-
-        // Simular cambio exitoso de contraseña
-        performPasswordChange()
+        // Llamar a la API
+        performPasswordChange(currentPassword, newPassword)
     }
 
-    private fun validateCurrentPassword(currentPassword: String): Boolean {
-        // TODO: Implementar validación real con tu sistema de autenticación
-        // Por ahora simulamos que es válida
-        return true
+    private fun performPasswordChange(currentPassword: String, newPassword: String) {
+        currentUserId?.let { userId ->
+            currentUserToken?.let { token ->
+                lifecycleScope.launch {
+                    try {
+                        runOnUiThread {
+                            binding.btnChangePassword.isEnabled = false
+                            binding.btnChangePassword.text = "Cambiando..."
+                        }
+
+                        val result = userRepository.cambiarContrasena(userId, token, currentPassword, newPassword)
+
+                        result.onSuccess { message ->
+                            runOnUiThread {
+                                binding.etCurrentPassword.setText("")
+                                binding.etNewPassword.setText("")
+                                Toast.makeText(
+                                    this@EditProfileActivity,
+                                    message,
+                                    Toast.LENGTH_LONG
+                                ).show()
+                                android.util.Log.d("EDIT_PROFILE_DEBUG", "Contraseña cambiada: $message")
+                            }
+                        }.onFailure { error ->
+                            runOnUiThread {
+                                Toast.makeText(
+                                    this@EditProfileActivity,
+                                    "Error: ${error.message}",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                                android.util.Log.e("EDIT_PROFILE_DEBUG", "Error al cambiar contraseña: ${error.message}")
+                            }
+                        }
+                    } catch (e: Exception) {
+                        runOnUiThread {
+                            Toast.makeText(
+                                this@EditProfileActivity,
+                                "Error inesperado: ${e.message}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            android.util.Log.e("EDIT_PROFILE_DEBUG", "Exception: ${e.message}")
+                        }
+                    } finally {
+                        runOnUiThread {
+                            binding.btnChangePassword.isEnabled = true
+                            binding.btnChangePassword.text = "Cambiar Contraseña"
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private fun isValidPassword(password: String): Boolean {
@@ -187,44 +460,33 @@ class EditProfileActivity : AppCompatActivity() {
         return hasUpper && hasLower && hasDigit
     }
 
-    private fun performPersonalDataUpdate() {
-        // Mostrar loading en botón de datos personales
-        binding.btnUpdatePersonalData.isEnabled = false
-        binding.btnUpdatePersonalData.text = "Actualizando..."
-
-        // Simular delay de actualización
-        binding.btnUpdatePersonalData.postDelayed({
-            // Restaurar botón
+    private fun showLoading(isLoading: Boolean) {
+        if (isLoading) {
+            // Deshabilitar todos los campos mientras carga
+            binding.etName.isEnabled = false
+            binding.etLastNamePaternal.isEnabled = false
+            binding.etLastNameMaternal.isEnabled = false
+            binding.etPhone.isEnabled = false
+            binding.etAddress.isEnabled = false
+            binding.etAlias.isEnabled = false
+            binding.btnUpdatePersonalData.isEnabled = false
+            binding.btnChangePassword.isEnabled = false
+            binding.ivProfileImage.isClickable = false
+        } else {
+            // Rehabilitar campos
+            binding.etName.isEnabled = true
+            binding.etLastNamePaternal.isEnabled = true
+            binding.etLastNameMaternal.isEnabled = true
+            binding.etPhone.isEnabled = true
+            binding.etAddress.isEnabled = true
+            binding.etAlias.isEnabled = true
             binding.btnUpdatePersonalData.isEnabled = true
-            binding.btnUpdatePersonalData.text = "Actualizar Datos Personales"
-
-            Toast.makeText(this, "¡Datos personales actualizados correctamente!", Toast.LENGTH_LONG).show()
-
-            // TODO: Aquí actualizarías los datos personales en tu sistema (API, UserManager, etc.)
-
-        }, 1500)
-    }
-
-    private fun performPasswordChange() {
-        // Mostrar loading en botón de contraseña
-        binding.btnChangePassword.isEnabled = false
-        binding.btnChangePassword.text = "Cambiando..."
-
-        // Simular delay de actualización
-        binding.btnChangePassword.postDelayed({
-            // Restaurar botón
             binding.btnChangePassword.isEnabled = true
-            binding.btnChangePassword.text = "Cambiar Contraseña"
+            binding.ivProfileImage.isClickable = true
 
-            // Limpiar campos de contraseña por seguridad
-            binding.etCurrentPassword.setText("")
-            binding.etNewPassword.setText("")
-
-            Toast.makeText(this, "¡Contraseña cambiada correctamente!", Toast.LENGTH_LONG).show()
-
-            // TODO: Aquí actualizarías la contraseña en tu sistema (API, UserManager, etc.)
-
-        }, 1500)
+            // Email siempre deshabilitado
+            binding.etEmail.isEnabled = false
+        }
     }
 
     override fun onSupportNavigateUp(): Boolean {

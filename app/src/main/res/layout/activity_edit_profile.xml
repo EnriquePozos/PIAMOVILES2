@@ -172,7 +172,7 @@
                 android:layout_marginBottom="16dp"
                 android:background="#E0E0E0"
                 android:scaleType="centerCrop"
-                android:src="https://res.cloudinary.com/ddrffjanq/image/upload/v1762721816/sazon_toto/usuarios/user_250798c9-af60-4b6a-b98a-84813f6c79d1.png"
+                android:src="@drawable/ic_add_photo"
                 android:clickable="true"
                 android:focusable="true"
                 android:contentDescription="Seleccionar imagen de perfil" />

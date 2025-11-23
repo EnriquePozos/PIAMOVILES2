@@ -88,6 +88,32 @@ data class PublicacionResponse(
 )
 
 // ============================================
+// ACTUALIZAR USUARIO - REQUEST
+// ============================================
+data class UsuarioUpdateRequest(
+    val email: String? = null,
+    val alias: String? = null,
+    val nombre: String? = null,
+    @SerializedName("apellido_paterno") val apellidoPaterno: String? = null,
+    @SerializedName("apellido_materno") val apellidoMaterno: String? = null,
+    val telefono: String? = null,
+    val direccion: String? = null,
+    @SerializedName("foto_perfil") val fotoPerfil: String? = null
+)
+
+// ============================================
+// CAMBIAR CONTRASEÑA - REQUEST & RESPONSE
+// ============================================
+data class CambiarContrasenaRequest(
+    @SerializedName("contraseña_actual") val contrasenaActual: String,
+    @SerializedName("contraseña_nueva") val contrasenaNueva: String
+)
+
+data class CambiarContrasenaResponse(
+    val message: String
+)
+
+// ============================================
 // RESPONSE WRAPPERS
 // ============================================
 data class ApiResponse<T>(

@@ -75,7 +75,9 @@ dependencies {
 
     // Para manejo de imágenes
     implementation("com.github.bumptech.glide:glide:4.16.0")
-    //kapt("com.github.bumptech.glide:compiler:4.16.0")
+    // kapt("com.github.bumptech.glide:compiler:4.16.0")
+    annotationProcessor("com.github.bumptech.glide:compiler:4.16.0")
+
 
     // Para circular ImageView (avatares)
     implementation("de.hdodenhof:circleimageview:3.1.0")

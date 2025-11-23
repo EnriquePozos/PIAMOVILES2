@@ -3,6 +3,9 @@ package com.example.piamoviles2
 import android.app.Activity
 import android.view.View
 import android.widget.ImageView
+import com.example.piamoviles2.utils.ImageUtils
+import com.example.piamoviles2.utils.SessionManager
+import de.hdodenhof.circleimageview.CircleImageView
 
 /**
  * Clase utilitaria para configurar el header reutilizable
@@ -18,7 +21,7 @@ object HeaderUtils {
         onBackClick: (() -> Unit)? = null
     ) {
         val btnBack = headerView.findViewById<ImageView>(R.id.btnBack)
-        val ivProfileIcon = headerView.findViewById<ImageView>(R.id.ivProfileIcon)
+        val ivProfileIcon = headerView.findViewById<CircleImageView>(R.id.ivProfileIcon)
 
         // Mostrar botón de regresar
         btnBack.visibility = View.VISIBLE
@@ -44,12 +47,15 @@ object HeaderUtils {
         onProfileClick: (() -> Unit)? = null
     ) {
         val btnBack = headerView.findViewById<ImageView>(R.id.btnBack)
-        val ivProfileIcon = headerView.findViewById<ImageView>(R.id.ivProfileIcon)
+        val ivProfileIcon = headerView.findViewById<CircleImageView>(R.id.ivProfileIcon)
 
         // Ocultar botón de regresar
         btnBack.visibility = View.GONE
         // Mostrar icono de perfil
         ivProfileIcon.visibility = View.VISIBLE
+
+        // CARGAR IMAGEN DE PERFIL CON GLIDE
+        loadHeaderProfileImage(headerView)
 
         // Configurar click del perfil
         ivProfileIcon.setOnClickListener {
@@ -62,10 +68,40 @@ object HeaderUtils {
      */
     fun setupBasicHeader(headerView: View) {
         val btnBack = headerView.findViewById<ImageView>(R.id.btnBack)
-        val ivProfileIcon = headerView.findViewById<ImageView>(R.id.ivProfileIcon)
+        val ivProfileIcon = headerView.findViewById<CircleImageView>(R.id.ivProfileIcon)
 
         // Ocultar ambos iconos
         btnBack.visibility = View.GONE
         ivProfileIcon.visibility = View.GONE
+    }
+
+    /**
+     Cargar imagen de perfil en el header
+     */
+    private fun loadHeaderProfileImage(headerView: View) {
+        val context = headerView.context
+        val ivProfileIcon = headerView.findViewById<CircleImageView>(R.id.ivProfileIcon)
+        val sessionManager = SessionManager(context)
+
+        val currentUser = sessionManager.getCurrentUser()
+        val profileImageUrl = currentUser?.fotoPerfil
+
+        // Cargar con Glide
+        ImageUtils.loadProfileImage(
+            context = context,
+            imageUrl = profileImageUrl,
+            circleImageView = ivProfileIcon,
+            showPlaceholder = true
+        )
+
+        android.util.Log.d("HEADER_DEBUG", "Cargando imagen del header: $profileImageUrl")
+    }
+
+    /**
+     Refrescar imagen del header (llamar después de actualizaciones)
+     */
+    fun refreshHeaderProfileImage(headerView: View) {
+        loadHeaderProfileImage(headerView)
+        android.util.Log.d("HEADER_DEBUG", "Header refrescado")
     }
 }
