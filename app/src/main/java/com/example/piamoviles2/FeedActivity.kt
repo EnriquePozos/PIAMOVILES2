@@ -10,6 +10,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.piamoviles2.databinding.ActivityFeedBinding
 import androidx.appcompat.app.AlertDialog
 import com.example.piamoviles2.utils.SessionManager
+import androidx.activity.OnBackPressedCallback
 
 // ============================================
 // IMPORTS PARA API INTEGRATION
@@ -48,7 +49,9 @@ class FeedActivity : AppCompatActivity() {
         setupHeader()
         setupRecyclerView()
         setupSearchView()
-        setupSwipeRefresh() // Nuevo: refresh al deslizar
+        setupSwipeRefresh()
+        setupClickListeners()
+        setupBackPressedHandler()
 
         // ============================================
         // CARGAR DATOS DE LA API
@@ -57,6 +60,85 @@ class FeedActivity : AppCompatActivity() {
 
         android.util.Log.d(TAG, "FeedActivity iniciada")
     }
+
+    private fun setupClickListeners() {
+        binding.rvPosts.setOnLongClickListener {
+            android.util.Log.d(TAG, "Click largo detectado en RecyclerView")
+            showOptionsMenu()
+            true
+        }
+
+        binding.root.setOnLongClickListener {
+            android.util.Log.d(TAG, "Click largo detectado en root view")
+            showOptionsMenu()
+            true
+        }
+
+        binding.searchView.setOnLongClickListener {
+            android.util.Log.d(TAG, "Click largo detectado en SearchView")
+            showOptionsMenu()
+            true
+        }
+    }
+    private fun setupBackPressedHandler() {
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                // Aquí decides qué hacer en back press
+                showExitConfirmation() // Confirmar salir de la app
+            }
+        })
+    }
+    private fun showExitConfirmation() {
+        AlertDialog.Builder(this)
+            .setTitle("Salir de la aplicación")
+            .setMessage("¿Quieres cerrar la aplicación?")
+            .setPositiveButton("Salir") { _, _ ->
+                finishAffinity() // Cerrar app
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+    private fun logoutModal() {
+        AlertDialog.Builder(this)
+            .setTitle("Cerrar sesión")
+            .setMessage("¿Estás seguro de que quieres cerrar sesión?")
+            .setPositiveButton("Cerrar sesión") { _, _ ->
+                performLogout()
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+    private fun performLogout() {
+        sessionManager.logout()
+        Toast.makeText(this, "Sesión cerrada exitosamente", Toast.LENGTH_SHORT).show()
+
+        val intent = Intent(this, MainActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK
+        startActivity(intent)
+        finish()
+    }
+
+    private fun showOptionsMenu() {
+        val options = arrayOf(
+            "Actualizar feed",
+            "Crear nueva receta",
+            "Mi perfil",
+            "Cerrar sesión"
+        )
+
+        AlertDialog.Builder(this)
+            .setTitle("Opciones")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> loadPostsFromApi()
+                    1 -> startActivity(Intent(this, CreatePostActivity::class.java))
+                    2 -> startActivity(Intent(this, ProfileActivity::class.java))
+                    3 -> logoutModal()
+                }
+            }
+            .show()
+    }
+
 
     // ============================================
     // SETUP COMPONENTS
@@ -352,44 +434,5 @@ class FeedActivity : AppCompatActivity() {
         android.util.Log.d(TAG, "==================")
     }
 
-    // ============================================
-    // MENU DE OPCIONES (OPCIONAL)
-    // ============================================
-    private fun showOptionsMenu() {
-        val options = arrayOf(
-            "Actualizar feed",
-            "Crear nueva receta",
-            "Mi perfil",
-            "Configuración",
-            "Cerrar sesión"
-        )
 
-        AlertDialog.Builder(this)
-            .setTitle("Opciones")
-            .setItems(options) { _, which ->
-                when (which) {
-                    0 -> loadPostsFromApi()
-                    1 -> startActivity(Intent(this, CreatePostActivity::class.java))
-                    2 -> startActivity(Intent(this, ProfileActivity::class.java))
-                    3 -> Toast.makeText(this, "Configuración no implementada", Toast.LENGTH_SHORT).show()
-                    4 -> logout()
-                }
-            }
-            .show()
-    }
-
-    private fun logout() {
-        AlertDialog.Builder(this)
-            .setTitle("Cerrar sesión")
-            .setMessage("¿Estás seguro de que quieres cerrar sesión?")
-            .setPositiveButton("Sí") { _, _ ->
-                sessionManager.logout()
-                val intent = Intent(this, MainActivity::class.java)
-                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK
-                startActivity(intent)
-                finish()
-            }
-            .setNegativeButton("No", null)
-            .show()
-    }
 }
