@@ -1,9 +1,11 @@
+// Ubicación: app/src/main/java/com/example/piamoviles2/data/repositories/PublicacionRepository.kt
+
 package com.example.piamoviles2.data.repositories
 
 import com.example.piamoviles2.data.api.ApiService
 import com.example.piamoviles2.data.models.*
 import com.example.piamoviles2.data.network.NetworkConfig
-import com.example.piamoviles2.Post // ✅ AGREGAR IMPORT
+import com.example.piamoviles2.Post
 import retrofit2.Response
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -124,15 +126,15 @@ class PublicacionRepository(
                     val posts = feedList.mapIndexed { index, publicacion ->
                         Post(
                             id = (publicacion.id.hashCode().takeIf { it > 0 } ?: (1000 + index)), // ID local
-                            apiId = publicacion.id, // ✅ AGREGAR: ID real de la API
+                            apiId = publicacion.id,
                             title = publicacion.titulo,
                             description = publicacion.descripcion ?: "",
                             imageUrl = publicacion.imagenPreview ?: "default_recipe",
                             author = "@${publicacion.autorAlias ?: "Usuario"}",
                             createdAt = formatearFecha(publicacion.fechaPublicacion),
                             isOwner = publicacion.idAutor == currentUserId,
-                            isFavorite = false, // TODO: Implementar lógica de favoritos
-                            isDraft = false, // Solo publicadas en el feed
+                            isFavorite = false,
+                            isDraft = false,
                             likesCount = publicacion.totalReacciones,
                             commentsCount = publicacion.totalComentarios
                         )
@@ -165,6 +167,38 @@ class PublicacionRepository(
             if (response.isSuccessful) {
                 response.body()?.let { publicacion ->
                     android.util.Log.d("PUBLICACION_REPO_DEBUG", "✅ Publicación obtenida: ${publicacion.titulo}")
+                    Result.success(publicacion)
+                } ?: Result.failure(Exception("Respuesta vacía del servidor"))
+            } else {
+                val errorMsg = parseErrorMessage(response)
+                android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Error: $errorMsg")
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Exception: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    // ============================================
+    // ✅ OBTENER PUBLICACION DETALLE COMPLETA (PARA PANTALLA DE DETALLES) - CORREGIDO
+    // ============================================
+    suspend fun obtenerPublicacionDetalleCompleta(
+        idPublicacion: String,
+        token: String
+    ): Result<PublicacionDetalle> {
+        return try {
+            android.util.Log.d("PUBLICACION_REPO_DEBUG", "=== obtenerPublicacionDetalleCompleta ===")
+            android.util.Log.d("PUBLICACION_REPO_DEBUG", "ID Publicación: $idPublicacion")
+
+            val authHeader = "Bearer $token"
+            val response = apiService.obtenerPublicacionPorId(idPublicacion, authHeader)
+
+            if (response.isSuccessful) {
+                response.body()?.let { publicacion ->
+                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "✅ Publicación obtenida: ${publicacion.titulo}")
+                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "Multimedia: ${publicacion.multimedia.size} items")
+                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "Estatus: ${publicacion.estatus}")
                     Result.success(publicacion)
                 } ?: Result.failure(Exception("Respuesta vacía del servidor"))
             } else {
@@ -272,16 +306,13 @@ class PublicacionRepository(
 
             val authHeader = "Bearer $token"
 
-            // ✅ USAR ENDPOINTS CORRECTOS QUE SÍ EXISTEN EN EL BACKEND
             val response = if (incluirBorradores) {
-                // Llamar endpoint de borradores
                 android.util.Log.d("PUBLICACION_REPO_DEBUG", "Llamando a obtenerBorradoresUsuario")
                 apiService.obtenerBorradoresUsuario(
                     idUsuario = idAutor,
                     authorization = authHeader
                 )
             } else {
-                // Llamar endpoint de publicaciones activas
                 android.util.Log.d("PUBLICACION_REPO_DEBUG", "Llamando a obtenerPublicacionesActivasUsuario")
                 apiService.obtenerPublicacionesActivasUsuario(
                     idUsuario = idAutor,
@@ -328,14 +359,14 @@ class PublicacionRepository(
                     val posts = publicacionesList.mapIndexed { index, publicacion ->
                         Post(
                             id = (publicacion.id.hashCode().takeIf { it > 0 } ?: (2000 + index)),
-                            apiId = publicacion.id, // ✅ AGREGAR: ID real de la API
+                            apiId = publicacion.id,
                             title = publicacion.titulo,
                             description = publicacion.descripcion ?: "",
                             imageUrl = publicacion.imagenPreview ?: "default_recipe",
                             author = "@${publicacion.autorAlias ?: "Usuario"}",
                             createdAt = formatearFecha(publicacion.fechaPublicacion),
-                            isOwner = true, // Siempre true para publicaciones del usuario
-                            isFavorite = false, // TODO: Implementar lógica de favoritos
+                            isOwner = true,
+                            isFavorite = false,
                             isDraft = publicacion.estatus == "borrador",
                             likesCount = publicacion.totalReacciones,
                             commentsCount = publicacion.totalComentarios

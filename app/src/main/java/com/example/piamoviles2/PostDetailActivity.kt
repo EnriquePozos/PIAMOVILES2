@@ -1,3 +1,5 @@
+// Ubicación: app/src/main/java/com/example/piamoviles2/PostDetailActivity.kt
+
 package com.example.piamoviles2
 
 import android.content.Intent
@@ -7,6 +9,11 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.piamoviles2.databinding.ActivityPostDetailBinding
+import com.example.piamoviles2.data.repositories.PublicacionRepository
+import com.example.piamoviles2.data.models.PublicacionDetalle
+import com.example.piamoviles2.utils.SessionManager
+import kotlinx.coroutines.*
+import com.example.piamoviles2.utils.ImageUtils
 
 class PostDetailActivity : AppCompatActivity() {
 
@@ -18,6 +25,10 @@ class PostDetailActivity : AppCompatActivity() {
     // Estados de like/dislike
     private var currentLikeState: LikeState = LikeState.NONE
 
+    private lateinit var publicacionRepository: PublicacionRepository
+    private lateinit var sessionManager: SessionManager
+    private var isLoading = false
+
     enum class LikeState {
         NONE, LIKED, DISLIKED
     }
@@ -25,6 +36,7 @@ class PostDetailActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_POST_ID = "extra_post_id"
         const val EXTRA_POST_API_ID = "extra_post_id"
+        private const val TAG = "POST_DETAIL_DEBUG"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -32,6 +44,9 @@ class PostDetailActivity : AppCompatActivity() {
 
         binding = ActivityPostDetailBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        publicacionRepository = PublicacionRepository()
+        sessionManager = SessionManager(this)
 
         setupHeader()
         setupRecyclerView()
@@ -182,57 +197,132 @@ class PostDetailActivity : AppCompatActivity() {
         val postId = intent.getIntExtra(EXTRA_POST_ID, -1)
         val apiId = intent.getStringExtra(EXTRA_POST_API_ID)
 
-        android.util.Log.d("POST_DETAIL_DEBUG", "Post ID local: $postId")
-        android.util.Log.d("POST_DETAIL_DEBUG", "Post API ID: $apiId")
+        android.util.Log.d(TAG, "=== loadPostData ===")
+        android.util.Log.d(TAG, "Post ID local: $postId")
+        android.util.Log.d(TAG, "Post API ID: $apiId")
 
-        if (postId != -1) {
-            // TODO: Usar apiId para hacer petición real a la API en el futuro
-            // if (!apiId.isNullOrEmpty()) {
-            //     loadPostFromApi(apiId)
-            // } else {
-            // Fallback con datos de ejemplo
+        if (!apiId.isNullOrEmpty()) {
+            android.util.Log.d(TAG, "Cargando desde API con ID: $apiId")
+            loadPostFromApi(apiId)
+        } else if (postId != -1) {
+            android.util.Log.d(TAG, "Usando datos de ejemplo para ID: $postId")
             val samplePost = Post.getSamplePosts().find { it.id == postId }
             if (samplePost != null) {
                 currentPost = samplePost
-                updatePostUI()
+                displayPostData(samplePost)
             } else {
-                android.util.Log.e("POST_DETAIL_DEBUG", "Post no encontrado con ID: $postId")
-                Toast.makeText(this, "Publicación no encontrada", Toast.LENGTH_SHORT).show()
-                finish()
+                showError("Publicación no encontrada")
             }
-            // }
         } else {
-            android.util.Log.e("POST_DETAIL_DEBUG", "ID de post inválido")
-            Toast.makeText(this, "Error al cargar publicación", Toast.LENGTH_SHORT).show()
-            finish()
+            showError("Error al cargar publicación")
         }
+    }
+
+    private fun loadPostFromApi(apiId: String) {
+        val token = sessionManager.getAccessToken()
+        val currentUser = sessionManager.getCurrentUser()
+
+        if (token == null) {
+            showError("Sesión no válida")
+            return
+        }
+
+        android.util.Log.d(TAG, "Cargando publicación desde API: $apiId")
+        setLoading(true)
+
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    publicacionRepository.obtenerPublicacionDetalleCompleta(apiId, token)
+                }
+
+                result.fold(
+                    onSuccess = { publicacion ->
+                        android.util.Log.d(TAG, "✅ Publicación cargada: ${publicacion.titulo}")
+
+                        // Convertir a Post para mantener compatibilidad
+                        currentPost = convertirDetalleAPost(publicacion, currentUser?.id ?: "")
+                        displayPostData(currentPost!!)
+
+                        // Usar comentarios de ejemplo por ahora
+                        loadComments()
+                    },
+                    onFailure = { error ->
+                        android.util.Log.e(TAG, "❌ Error: ${error.message}")
+                        showError("Error al cargar publicación: ${error.message}")
+                    }
+                )
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "❌ Exception: ${e.message}")
+                showError("Error inesperado: ${e.message}")
+            } finally {
+                setLoading(false)
+            }
+        }
+    }
+
+    // ✅ CORREGIDO: Usar PublicacionDetalle en lugar de PublicacionDetalleCompleta
+    private fun convertirDetalleAPost(detalle: PublicacionDetalle, currentUserId: String): Post {
+        // Usar la primera imagen como preview - CORREGIDO: multimedia en lugar de multimediaList
+        val imagenPreview = detalle.multimedia.firstOrNull { it.tipo == "imagen" }?.url ?: ""
+
+        // Seleccionar fecha apropiada
+        val fechaAUsar = when {
+            detalle.estatus == "BORRADOR" && !detalle.fechaCreacion.isNullOrEmpty() -> detalle.fechaCreacion
+            !detalle.fechaPublicacion.isNullOrEmpty() -> detalle.fechaPublicacion
+            !detalle.fechaCreacion.isNullOrEmpty() -> detalle.fechaCreacion
+            else -> null
+        }
+
+        android.util.Log.d(TAG, "=== convertirDetalleAPost ===")
+        android.util.Log.d(TAG, "Multimedia disponibles: ${detalle.multimedia.size}")
+        android.util.Log.d(TAG, "Imagen preview: $imagenPreview")
+        android.util.Log.d(TAG, "Fecha seleccionada: $fechaAUsar")
+
+        return Post(
+            id = detalle.id.hashCode(),
+            apiId = detalle.id,
+            title = detalle.titulo,
+            description = detalle.descripcion ?: "",
+            imageUrl = imagenPreview,
+            author = detalle.autorAlias ?: "Usuario Anónimo",
+            createdAt = formatearFecha(fechaAUsar),
+            isOwner = detalle.idAutor == currentUserId,
+            isFavorite = false,
+            isDraft = detalle.estatus == "BORRADOR",
+            likesCount = detalle.totalReacciones,
+            commentsCount = detalle.totalComentarios
+        )
     }
 
     private fun updatePostUI() {
         currentPost?.let { post ->
-            // TODO: Actualizar UI con los datos del post
-            // Por ejemplo:
-            // binding.tvPostTitle.text = post.title
-            // binding.tvPostDescription.text = post.description
-            // binding.tvPostAuthor.text = post.author
-
-            android.util.Log.d("POST_DETAIL_DEBUG", "UI actualizada para: ${post.title}")
+            displayPostData(post)
         }
     }
 
     private fun displayPostData(post: Post) {
+        android.util.Log.d(TAG, "=== displayPostData ===")
+        android.util.Log.d(TAG, "Título: ${post.title}")
+        android.util.Log.d(TAG, "Imagen URL: ${post.imageUrl}")
+
         binding.tvPostTitle.text = post.title
         binding.tvPostAuthor.text = post.author
         binding.tvPostDescription.text = post.description
 
-        // Mostrar imágenes (simulado - en una app real cargarías desde URLs)
-        binding.ivPostImage1.setImageResource(R.mipmap.ic_launcher)
-
-        // Si hay múltiples imágenes, mostrar la segunda
-        if (post.imageUrl.contains("multiple") || post.title.contains("Desayuno")) {
-            binding.ivPostImage2.visibility = View.VISIBLE
-            binding.ivPostImage2.setImageResource(R.mipmap.ic_launcher)
+        // ✅ CARGAR IMAGEN REAL DESDE CLOUDINARY
+        if (ImageUtils.isValidImageUrl(post.imageUrl)) {
+            android.util.Log.d(TAG, "✅ Cargando imagen desde Cloudinary: ${post.imageUrl}")
+            ImageUtils.loadPostImage(
+                context = this,
+                imageUrl = post.imageUrl,
+                imageView = binding.ivPostImage1,
+                showPlaceholder = true
+            )
+            binding.ivPostImage2.visibility = View.GONE
         } else {
+            android.util.Log.d(TAG, "❌ URL no válida, usando placeholder")
+            binding.ivPostImage1.setImageResource(R.mipmap.ic_launcher)
             binding.ivPostImage2.visibility = View.GONE
         }
 
@@ -240,11 +330,45 @@ class PostDetailActivity : AppCompatActivity() {
         updateFavoriteButton()
     }
 
+    private fun setLoading(loading: Boolean) {
+        isLoading = loading
+        if (loading) {
+            android.util.Log.d(TAG, "Mostrando loading...")
+        } else {
+            android.util.Log.d(TAG, "Ocultando loading...")
+        }
+    }
+
+    private fun showError(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+        android.util.Log.e(TAG, "Error mostrado: $message")
+        finish()
+    }
+
+    private fun formatearFecha(fechaApi: String?): String {
+        if (fechaApi.isNullOrEmpty()) return "Sin fecha"
+
+        try {
+            if (fechaApi.contains("T")) {
+                val soloFecha = fechaApi.split("T")[0]
+                val partes = soloFecha.split("-")
+                if (partes.size == 3) {
+                    return "${partes[2]}/${partes[1]}/${partes[0]}"
+                }
+            }
+            return fechaApi
+        } catch (e: Exception) {
+            return "Fecha inválida"
+        }
+    }
+
     private fun loadComments() {
-        // Datos de ejemplo para comentarios
-        comments.clear()
-        comments.addAll(Comment.getSampleComments())
-        commentAdapter.notifyDataSetChanged()
+        // Si no hay comentarios desde API, usar datos de ejemplo
+        if (comments.isEmpty()) {
+            comments.clear()
+            comments.addAll(Comment.getSampleComments())
+            commentAdapter.notifyDataSetChanged()
+        }
     }
 
     // Manejo de likes en comentarios principales

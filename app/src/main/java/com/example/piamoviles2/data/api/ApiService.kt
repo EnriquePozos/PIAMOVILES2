@@ -166,4 +166,12 @@ interface ApiService {
         @Path("id_usuario") idUsuario: String,
         @Header("Authorization") authorization: String
     ): Response<List<PublicacionListFeed>>
+
+    // Obtener publicación detalle completa por ID (para pantalla de detalles)
+    @GET("api/publicaciones/{id_publicacion}")
+    suspend fun obtenerPublicacionDetalleCompleta(
+        @Path("id_publicacion") idPublicacion: String,
+        @Header("Authorization") authorization: String
+    ): Response<PublicacionDetalleCompleta>
+
 }

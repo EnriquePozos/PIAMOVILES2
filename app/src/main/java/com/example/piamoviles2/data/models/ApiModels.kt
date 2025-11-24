@@ -1,3 +1,5 @@
+// Ubicación: app/src/main/java/com/example/piamoviles2/data/models/ApiModels.kt
+
 package com.example.piamoviles2.data.models
 
 import com.google.gson.annotations.SerializedName
@@ -88,6 +90,83 @@ data class PublicacionResponse(
 )
 
 // ============================================
+// PUBLICACIONES RESPONSE MODELS DETALLADOS
+// ============================================
+data class PublicacionDetalle(
+    val id: String,
+    val titulo: String,
+    val descripcion: String?,
+    @SerializedName("fecha_creacion") val fechaCreacion: String,
+    @SerializedName("fecha_publicacion") val fechaPublicacion: String?,
+    @SerializedName("fecha_modificacion") val fechaModificacion: String?,
+    val estatus: String,
+    @SerializedName("id_autor") val idAutor: String,
+    @SerializedName("autor_alias") val autorAlias: String?,
+    @SerializedName("autor_foto") val autorFoto: String?,
+    @SerializedName("total_comentarios") val totalComentarios: Int = 0,
+    @SerializedName("total_reacciones") val totalReacciones: Int = 0,
+    @SerializedName("total_favoritos") val totalFavoritos: Int = 0,
+    val multimedia: List<MultimediaResponse> = emptyList()
+)
+
+data class PublicacionListFeed(
+    val id: String,
+    val titulo: String,
+    val descripcion: String?,
+    @SerializedName("fecha_publicacion") val fechaPublicacion: String?,
+    val estatus: String,
+    @SerializedName("id_autor") val idAutor: String,
+    @SerializedName("autor_alias") val autorAlias: String?,
+    @SerializedName("autor_foto") val autorFoto: String?,
+    @SerializedName("total_comentarios") val totalComentarios: Int = 0,
+    @SerializedName("total_reacciones") val totalReacciones: Int = 0,
+    @SerializedName("imagen_preview") val imagenPreview: String?
+)
+
+// ============================================
+// PUBLICACION DETALLE COMPLETA (PARA PANTALLA DE DETALLES)
+// ============================================
+data class PublicacionDetalleCompleta(
+    val id: String,
+    val titulo: String,
+    val descripcion: String?,
+    @SerializedName("fecha_publicacion") val fechaPublicacion: String?,
+    @SerializedName("fecha_creacion") val fechaCreacion: String?,
+    val estatus: String,
+    @SerializedName("id_autor") val idAutor: String,
+
+    // Datos del autor
+    @SerializedName("autor_alias") val autorAlias: String?,
+    @SerializedName("autor_foto") val autorFoto: String?,
+
+    // Estadísticas
+    @SerializedName("total_comentarios") val totalComentarios: Int = 0,
+    @SerializedName("total_reacciones") val totalReacciones: Int = 0,
+
+    // Multimedia completa
+    @SerializedName("multimedia_list") val multimediaList: List<MultimediaDetalle> = emptyList(),
+
+    // Comentarios completos
+    @SerializedName("comentarios") val comentarios: List<ComentarioDetalle> = emptyList()
+)
+
+data class MultimediaDetalle(
+    val id: String,
+    val url: String,
+    val tipo: String, // "imagen", "video"
+    val descripcion: String?
+)
+
+data class ComentarioDetalle(
+    val id: String,
+    val contenido: String,
+    @SerializedName("fecha_creacion") val fechaCreacion: String?,
+    @SerializedName("id_usuario") val idUsuario: String,
+    @SerializedName("usuario_alias") val usuarioAlias: String?,
+    @SerializedName("usuario_foto") val usuarioFoto: String?
+)
+
+// ============================================
 // ACTUALIZAR USUARIO - REQUEST
 // ============================================
 data class UsuarioUpdateRequest(
@@ -151,40 +230,6 @@ data class ActualizarPublicacionRequest(
     val titulo: String?,
     val descripcion: String?,
     val estatus: String? // "borrador" o "publicada"
-)
-
-// ============================================
-// PUBLICACIONES RESPONSE MODELS DETALLADOS
-// ============================================
-data class PublicacionDetalle(
-    val id: String,
-    val titulo: String,
-    val descripcion: String?,
-    @SerializedName("fecha_creacion") val fechaCreacion: String,
-    @SerializedName("fecha_publicacion") val fechaPublicacion: String?,
-    @SerializedName("fecha_modificacion") val fechaModificacion: String?,
-    val estatus: String,
-    @SerializedName("id_autor") val idAutor: String,
-    @SerializedName("autor_alias") val autorAlias: String?,
-    @SerializedName("autor_foto") val autorFoto: String?,
-    @SerializedName("total_comentarios") val totalComentarios: Int = 0,
-    @SerializedName("total_reacciones") val totalReacciones: Int = 0,
-    @SerializedName("total_favoritos") val totalFavoritos: Int = 0,
-    val multimedia: List<MultimediaResponse> = emptyList()
-)
-
-data class PublicacionListFeed(
-    val id: String,
-    val titulo: String,
-    val descripcion: String?,
-    @SerializedName("fecha_publicacion") val fechaPublicacion: String?,
-    val estatus: String,
-    @SerializedName("id_autor") val idAutor: String,
-    @SerializedName("autor_alias") val autorAlias: String?,
-    @SerializedName("autor_foto") val autorFoto: String?,
-    @SerializedName("total_comentarios") val totalComentarios: Int = 0,
-    @SerializedName("total_reacciones") val totalReacciones: Int = 0,
-    @SerializedName("imagen_preview") val imagenPreview: String? // Primera imagen
 )
 
 // ============================================
