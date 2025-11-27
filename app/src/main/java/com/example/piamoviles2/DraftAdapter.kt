@@ -6,7 +6,7 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.piamoviles2.databinding.ItemDraftBinding
-import com.example.piamoviles2.utils.ImageUtils // ✅ AGREGAR IMPORT
+import com.example.piamoviles2.utils.ImageUtils //   AGREGAR IMPORT
 
 /**
  * Adaptador especializado para borradores con funcionalidades de editar y eliminar
@@ -57,7 +57,7 @@ class DraftAdapter(
             binding.tvDraftDate.text = draft.createdAt
 
             // ============================================
-            // ✅ CARGAR IMAGEN REAL CON IMAGEUTILS
+            //   CARGAR IMAGEN REAL CON IMAGEUTILS
             // ============================================
             if (ImageUtils.isValidImageUrl(draft.imageUrl)) {
                 // Cargar imagen real de la API (URL de Cloudinary)
@@ -67,7 +67,7 @@ class DraftAdapter(
                     imageView = binding.ivDraftImage,
                     showPlaceholder = true
                 )
-                android.util.Log.d(TAG, "✅ Cargando imagen de URL: ${draft.imageUrl}")
+                android.util.Log.d(TAG, "  Cargando imagen de URL: ${draft.imageUrl}")
             } else {
                 // ============================================
                 // FALLBACK: IMÁGENES LOCALES PARA DATOS DE EJEMPLO

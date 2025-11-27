@@ -238,7 +238,7 @@ class PostDetailActivity : AppCompatActivity() {
 
                 result.fold(
                     onSuccess = { publicacion ->
-                        android.util.Log.d(TAG, "✅ Publicación cargada: ${publicacion.titulo}")
+                        android.util.Log.d(TAG, "  Publicación cargada: ${publicacion.titulo}")
 
                         // Convertir a Post para mantener compatibilidad
                         currentPost = convertirDetalleAPost(publicacion, currentUser?.id ?: "")
@@ -248,12 +248,12 @@ class PostDetailActivity : AppCompatActivity() {
                         loadComments()
                     },
                     onFailure = { error ->
-                        android.util.Log.e(TAG, "❌ Error: ${error.message}")
+                        android.util.Log.e(TAG, "  Error: ${error.message}")
                         showError("Error al cargar publicación: ${error.message}")
                     }
                 )
             } catch (e: Exception) {
-                android.util.Log.e(TAG, "❌ Exception: ${e.message}")
+                android.util.Log.e(TAG, "  Exception: ${e.message}")
                 showError("Error inesperado: ${e.message}")
             } finally {
                 setLoading(false)
@@ -261,7 +261,7 @@ class PostDetailActivity : AppCompatActivity() {
         }
     }
 
-    // ✅ CORREGIDO: Usar PublicacionDetalle en lugar de PublicacionDetalleCompleta
+    //   CORREGIDO: Usar PublicacionDetalle en lugar de PublicacionDetalleCompleta
     private fun convertirDetalleAPost(detalle: PublicacionDetalle, currentUserId: String): Post {
         // Usar la primera imagen como preview - CORREGIDO: multimedia en lugar de multimediaList
         val imagenPreview = detalle.multimedia.firstOrNull { it.tipo == "imagen" }?.url ?: ""
@@ -310,9 +310,9 @@ class PostDetailActivity : AppCompatActivity() {
         binding.tvPostAuthor.text = post.author
         binding.tvPostDescription.text = post.description
 
-        // ✅ CARGAR IMAGEN REAL DESDE CLOUDINARY
+        //   CARGAR IMAGEN REAL DESDE CLOUDINARY
         if (ImageUtils.isValidImageUrl(post.imageUrl)) {
-            android.util.Log.d(TAG, "✅ Cargando imagen desde Cloudinary: ${post.imageUrl}")
+            android.util.Log.d(TAG, "  Cargando imagen desde Cloudinary: ${post.imageUrl}")
             ImageUtils.loadPostImage(
                 context = this,
                 imageUrl = post.imageUrl,
@@ -321,7 +321,7 @@ class PostDetailActivity : AppCompatActivity() {
             )
             binding.ivPostImage2.visibility = View.GONE
         } else {
-            android.util.Log.d(TAG, "❌ URL no válida, usando placeholder")
+            android.util.Log.d(TAG, "  URL no válida, usando placeholder")
             binding.ivPostImage1.setImageResource(R.mipmap.ic_launcher)
             binding.ivPostImage2.visibility = View.GONE
         }

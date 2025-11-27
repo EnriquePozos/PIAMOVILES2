@@ -51,7 +51,7 @@ class CreatePostActivity : AppCompatActivity() {
         binding = ActivityCreatePostBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // ✅ CÓDIGO EXISTENTE
+        //   CÓDIGO EXISTENTE
         initializeImages()
         setupHeader()
         setupImagePicker()
@@ -60,7 +60,7 @@ class CreatePostActivity : AppCompatActivity() {
         checkEditMode()
 
         // ============================================
-        // ✅ NUEVAS FUNCIONALIDADES API
+        //   NUEVAS FUNCIONALIDADES API
         // ============================================
         setupApiComponents()
         loadUserData()
@@ -86,7 +86,7 @@ class CreatePostActivity : AppCompatActivity() {
         val token = sessionManager.getAccessToken()
         val currentUser = sessionManager.getCurrentUser()
 
-        android.util.Log.d(TAG, "Token: ${if (token?.isNotEmpty() == true) "✅ Cargado" else "❌ Vacío"}")
+        android.util.Log.d(TAG, "Token: ${if (token?.isNotEmpty() == true) "  Cargado" else "  Vacío"}")
         android.util.Log.d(TAG, "User ID: ${currentUser?.id}")
     }
 
@@ -232,7 +232,7 @@ class CreatePostActivity : AppCompatActivity() {
         updateImageUI(currentImageSlot, resizedBitmap)
 
         // ============================================
-        // ✅ NUEVO: CONVERTIR BITMAP A FILE PARA API
+        //   NUEVO: CONVERTIR BITMAP A FILE PARA API
         // ============================================
         convertBitmapToFile(resizedBitmap, currentImageSlot)
     }
@@ -264,11 +264,11 @@ class CreatePostActivity : AppCompatActivity() {
             // Agregar nuevo archivo
             selectedImageFiles.add(tempFile)
 
-            android.util.Log.d(TAG, "✅ Imagen convertida a archivo: ${tempFile.name}")
+            android.util.Log.d(TAG, "  Imagen convertida a archivo: ${tempFile.name}")
             android.util.Log.d(TAG, "Total archivos: ${selectedImageFiles.size}")
 
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ Error al convertir bitmap a archivo", e)
+            android.util.Log.e(TAG, "  Error al convertir bitmap a archivo", e)
         }
     }
 
@@ -318,7 +318,7 @@ class CreatePostActivity : AppCompatActivity() {
         updateImageUI(slot, null)
 
         // ============================================
-        // ✅ NUEVO: REMOVER ARCHIVO TAMBIÉN
+        //   NUEVO: REMOVER ARCHIVO TAMBIÉN
         // ============================================
         selectedImageFiles.removeAll { file ->
             if (file.name.contains("image_slot_${slot}_")) {
@@ -399,18 +399,18 @@ class CreatePostActivity : AppCompatActivity() {
 
                 result.fold(
                     onSuccess = { publicacion ->
-                        android.util.Log.d(TAG, "✅ Borrador guardado: ${publicacion.id}")
+                        android.util.Log.d(TAG, "  Borrador guardado: ${publicacion.id}")
                         Toast.makeText(this@CreatePostActivity, "Borrador guardado correctamente", Toast.LENGTH_SHORT).show()
                         cleanupAndFinish()
                     },
                     onFailure = { error ->
-                        android.util.Log.e(TAG, "❌ Error al guardar borrador", error)
+                        android.util.Log.e(TAG, "  Error al guardar borrador", error)
                         Toast.makeText(this@CreatePostActivity, "Error al guardar borrador: ${error.message}", Toast.LENGTH_LONG).show()
                     }
                 )
 
             } catch (e: Exception) {
-                android.util.Log.e(TAG, "❌ Exception al guardar borrador", e)
+                android.util.Log.e(TAG, "  Exception al guardar borrador", e)
                 Toast.makeText(this@CreatePostActivity, "Error inesperado: ${e.message}", Toast.LENGTH_LONG).show()
             } finally {
                 setLoading(false)
@@ -459,7 +459,7 @@ class CreatePostActivity : AppCompatActivity() {
 
                 result.fold(
                     onSuccess = { publicacion ->
-                        android.util.Log.d(TAG, "✅ Publicación creada: ${publicacion.id}")
+                        android.util.Log.d(TAG, "  Publicación creada: ${publicacion.id}")
                         Toast.makeText(this@CreatePostActivity, "¡Receta publicada exitosamente!", Toast.LENGTH_LONG).show()
 
                         // Regresar al feed
@@ -469,13 +469,13 @@ class CreatePostActivity : AppCompatActivity() {
                         cleanupAndFinish()
                     },
                     onFailure = { error ->
-                        android.util.Log.e(TAG, "❌ Error al publicar", error)
+                        android.util.Log.e(TAG, "  Error al publicar", error)
                         Toast.makeText(this@CreatePostActivity, "Error al publicar: ${error.message}", Toast.LENGTH_LONG).show()
                     }
                 )
 
             } catch (e: Exception) {
-                android.util.Log.e(TAG, "❌ Exception al publicar", e)
+                android.util.Log.e(TAG, "  Exception al publicar", e)
                 Toast.makeText(this@CreatePostActivity, "Error inesperado: ${e.message}", Toast.LENGTH_LONG).show()
             } finally {
                 setLoading(false)

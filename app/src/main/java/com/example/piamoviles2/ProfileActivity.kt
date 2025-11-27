@@ -47,11 +47,11 @@ class ProfileActivity : AppCompatActivity() {
         val currentUser = sessionManager.getCurrentUser()
 
         if (currentUser != null) {
-            // ✅ CARGAR DATOS DEL USUARIO
+            //   CARGAR DATOS DEL USUARIO
             binding.tvUserAlias.text = currentUser.alias
             binding.tvUserEmail.text = currentUser.email
 
-            // ✅ CARGAR IMAGEN CON GLIDE
+            //   CARGAR IMAGEN CON GLIDE
             ImageUtils.loadProfileImage(
                 context = this,
                 imageUrl = currentUser.fotoPerfil,
@@ -110,7 +110,7 @@ class ProfileActivity : AppCompatActivity() {
         val token = sessionManager.getAccessToken()
 
         if (currentUser == null || token == null) {
-            android.util.Log.e("PROFILE_DEBUG", "❌ Error: Usuario o token no válido")
+            android.util.Log.e("PROFILE_DEBUG", "  Error: Usuario o token no válido")
             Toast.makeText(this, "Error: Sesión no válida", Toast.LENGTH_SHORT).show()
             return
         }
@@ -133,7 +133,7 @@ class ProfileActivity : AppCompatActivity() {
 
                 result.fold(
                     onSuccess = { posts ->
-                        android.util.Log.d("PROFILE_DEBUG", "✅ Publicaciones cargadas: ${posts.size}")
+                        android.util.Log.d("PROFILE_DEBUG", "  Publicaciones cargadas: ${posts.size}")
 
                         userPosts.clear()
                         userPosts.addAll(posts)
@@ -146,13 +146,13 @@ class ProfileActivity : AppCompatActivity() {
                         }
                     },
                     onFailure = { error ->
-                        android.util.Log.e("PROFILE_DEBUG", "❌ Error al cargar publicaciones", error)
+                        android.util.Log.e("PROFILE_DEBUG", "  Error al cargar publicaciones", error)
                         handlePostsError(error)
                     }
                 )
 
             } catch (e: Exception) {
-                android.util.Log.e("PROFILE_DEBUG", "❌ Exception al cargar publicaciones", e)
+                android.util.Log.e("PROFILE_DEBUG", "  Exception al cargar publicaciones", e)
                 Toast.makeText(this@ProfileActivity, "Error inesperado: ${e.message}", Toast.LENGTH_LONG).show()
             } finally {
                 setLoadingPosts(false)
@@ -217,13 +217,13 @@ class ProfileActivity : AppCompatActivity() {
             binding.rvUserPosts.visibility = View.VISIBLE
             android.util.Log.d("PROFILE_DEBUG", "Mostrando ${userPosts.size} publicaciones")
 
-            // ✅ LOGS PARA DEBUGGING:
+            //   LOGS PARA DEBUGGING:
             userPosts.forEachIndexed { index, post ->
                 android.util.Log.d("PROFILE_DEBUG", "Post $index: ${post.title}")
             }
         }
 
-        // ✅ LOG ANTES DE submitList:
+        //   LOG ANTES DE submitList:
         android.util.Log.d("PROFILE_DEBUG", "Llamando submitList con ${userPosts.size} elementos")
         postAdapter.submitList(userPosts.toList())
 
@@ -235,7 +235,7 @@ class ProfileActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // ✅ RECARGAR DATOS AL REGRESAR (incluyendo imagen actualizada)
+        //   RECARGAR DATOS AL REGRESAR (incluyendo imagen actualizada)
         setupUserInfo()
         loadUserPosts()
         android.util.Log.d("PROFILE_DEBUG", "ProfileActivity refrescada en onResume")

@@ -103,7 +103,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun performLogin(email: String, password: String) {
-        // ✅ LOGS DETALLADOS DE LOS DATOS
+        //   LOGS DETALLADOS DE LOS DATOS
         android.util.Log.d("LOGIN_DEBUG", "=== INICIANDO LOGIN ===")
         android.util.Log.d("LOGIN_DEBUG", "Email RAW: '$email'")
         android.util.Log.d("LOGIN_DEBUG", "Email length: ${email.length}")
@@ -115,7 +115,7 @@ class MainActivity : AppCompatActivity() {
         android.util.Log.d("LOGIN_DEBUG", "Password isEmpty: ${password.isEmpty()}")
         android.util.Log.d("LOGIN_DEBUG", "Password isBlank: ${password.isBlank()}")
 
-        // ✅ VERIFICAR SI LOS CAMPOS TIENEN DATOS
+        //   VERIFICAR SI LOS CAMPOS TIENEN DATOS
         val emailFromField = binding.etEmail.text.toString()
         val passwordFromField = binding.etPassword.text.toString()
 

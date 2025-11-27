@@ -64,15 +64,15 @@ class PublicacionRepository(
             android.util.Log.d("PUBLICACION_REPO_DEBUG", "Response successful: ${response.isSuccessful}")
 
             if (response.isSuccessful && response.body() != null) {
-                android.util.Log.d("PUBLICACION_REPO_DEBUG", "✅ Publicación creada exitosamente")
+                android.util.Log.d("PUBLICACION_REPO_DEBUG", " Publicación creada exitosamente")
                 Result.success(response.body()!!)
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Error en respuesta: $errorMsg")
+                android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Error en respuesta: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Exception: ${e.message}")
+            android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Exception: ${e.message}")
             Result.failure(e)
         }
     }
@@ -91,22 +91,22 @@ class PublicacionRepository(
 
             if (response.isSuccessful) {
                 response.body()?.let { feed ->
-                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "✅ Feed obtenido: ${feed.size} publicaciones")
+                    android.util.Log.d("PUBLICACION_REPO_DEBUG", " Feed obtenido: ${feed.size} publicaciones")
                     Result.success(feed)
                 } ?: Result.failure(Exception("Respuesta vacía del servidor"))
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Error al obtener feed: $errorMsg")
+                android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Error al obtener feed: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Exception: ${e.message}")
+            android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Exception: ${e.message}")
             Result.failure(e)
         }
     }
 
     // ============================================
-// ✅ NUEVO: OBTENER FEED CON CONVERSIÓN A POST
+//   NUEVO: OBTENER FEED CON CONVERSIÓN A POST
 // ============================================
     suspend fun obtenerFeedConvertido(token: String, currentUserId: String): Result<List<Post>> {
         return try {
@@ -120,7 +120,7 @@ class PublicacionRepository(
 
             if (response.isSuccessful) {
                 response.body()?.let { feedList ->
-                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "✅ Feed obtenido: ${feedList.size} publicaciones")
+                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "  Feed obtenido: ${feedList.size} publicaciones")
 
                     // Convertir PublicacionListFeed a Post
                     val posts = feedList.mapIndexed { index, publicacion ->
@@ -140,16 +140,16 @@ class PublicacionRepository(
                         )
                     }
 
-                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "✅ Convertido a ${posts.size} Posts con API IDs")
+                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "  Convertido a ${posts.size} Posts con API IDs")
                     Result.success(posts)
                 } ?: Result.failure(Exception("Respuesta vacía del servidor"))
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Error al obtener feed: $errorMsg")
+                android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Error al obtener feed: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Exception: ${e.message}")
+            android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Exception: ${e.message}")
             Result.failure(e)
         }
     }
@@ -166,22 +166,22 @@ class PublicacionRepository(
 
             if (response.isSuccessful) {
                 response.body()?.let { publicacion ->
-                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "✅ Publicación obtenida: ${publicacion.titulo}")
+                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "  Publicación obtenida: ${publicacion.titulo}")
                     Result.success(publicacion)
                 } ?: Result.failure(Exception("Respuesta vacía del servidor"))
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Error: $errorMsg")
+                android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Error: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Exception: ${e.message}")
+            android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Exception: ${e.message}")
             Result.failure(e)
         }
     }
 
     // ============================================
-    // ✅ OBTENER PUBLICACION DETALLE COMPLETA (PARA PANTALLA DE DETALLES) - CORREGIDO
+    //   OBTENER PUBLICACION DETALLE COMPLETA (PARA PANTALLA DE DETALLES) - CORREGIDO
     // ============================================
     suspend fun obtenerPublicacionDetalleCompleta(
         idPublicacion: String,
@@ -196,18 +196,18 @@ class PublicacionRepository(
 
             if (response.isSuccessful) {
                 response.body()?.let { publicacion ->
-                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "✅ Publicación obtenida: ${publicacion.titulo}")
+                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "  Publicación obtenida: ${publicacion.titulo}")
                     android.util.Log.d("PUBLICACION_REPO_DEBUG", "Multimedia: ${publicacion.multimedia.size} items")
                     android.util.Log.d("PUBLICACION_REPO_DEBUG", "Estatus: ${publicacion.estatus}")
                     Result.success(publicacion)
                 } ?: Result.failure(Exception("Respuesta vacía del servidor"))
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Error: $errorMsg")
+                android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Error: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Exception: ${e.message}")
+            android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Exception: ${e.message}")
             Result.failure(e)
         }
     }
@@ -251,15 +251,15 @@ class PublicacionRepository(
             )
 
             if (response.isSuccessful && response.body() != null) {
-                android.util.Log.d("PUBLICACION_REPO_DEBUG", "✅ Publicación actualizada exitosamente")
+                android.util.Log.d("PUBLICACION_REPO_DEBUG", "  Publicación actualizada exitosamente")
                 Result.success(response.body()!!)
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Error: $errorMsg")
+                android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Error: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Exception: ${e.message}")
+            android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Exception: ${e.message}")
             Result.failure(e)
         }
     }
@@ -277,16 +277,16 @@ class PublicacionRepository(
 
             if (response.isSuccessful) {
                 response.body()?.let { resultado ->
-                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "✅ Publicación eliminada")
+                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "  Publicación eliminada")
                     Result.success(resultado.message)
                 } ?: Result.success("Publicación eliminada exitosamente")
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Error: $errorMsg")
+                android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Error: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Exception: ${e.message}")
+            android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Exception: ${e.message}")
             Result.failure(e)
         }
     }
@@ -325,22 +325,22 @@ class PublicacionRepository(
 
             if (response.isSuccessful) {
                 response.body()?.let { publicaciones ->
-                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "✅ Publicaciones obtenidas: ${publicaciones.size}")
+                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "  Publicaciones obtenidas: ${publicaciones.size}")
                     Result.success(publicaciones)
                 } ?: Result.failure(Exception("Respuesta vacía del servidor"))
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Error: $errorMsg")
+                android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Error: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Exception: ${e.message}")
+            android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Exception: ${e.message}")
             Result.failure(e)
         }
     }
 
     // ============================================
-// ✅ NUEVO: OBTENER PUBLICACIONES USUARIO CONVERTIDAS A POST
+//   NUEVO: OBTENER PUBLICACIONES USUARIO CONVERTIDAS A POST
 // ============================================
     suspend fun obtenerPublicacionesUsuarioConvertidas(
         idAutor: String,
@@ -373,7 +373,7 @@ class PublicacionRepository(
                         )
                     }
 
-                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "✅ Convertidas ${posts.size} publicaciones de usuario con API IDs")
+                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "  Convertidas ${posts.size} publicaciones de usuario con API IDs")
                     Result.success(posts)
                 },
                 onFailure = { error ->
@@ -381,13 +381,13 @@ class PublicacionRepository(
                 }
             )
         } catch (e: Exception) {
-            android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Exception: ${e.message}")
+            android.util.Log.e("PUBLICACION_REPO_DEBUG", " Exception: ${e.message}")
             Result.failure(e)
         }
     }
 
     // ============================================
-    // ✅ HELPER PARA FORMATEAR FECHAS
+    //  HELPER PARA FORMATEAR FECHAS
     // ============================================
     private fun formatearFecha(fechaISO: String?): String {
         return try {
@@ -426,7 +426,7 @@ class PublicacionRepository(
     }
 
     // ============================================
-    // ✅ HELPER PARA MANEJAR IMÁGENES POR DEFECTO
+    //  HELPER PARA MANEJAR IMÁGENES POR DEFECTO
     // ============================================
     private fun getDefaultImageForRecipe(titulo: String): String {
         return when {

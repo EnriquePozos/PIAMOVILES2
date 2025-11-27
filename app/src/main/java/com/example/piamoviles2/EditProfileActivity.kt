@@ -23,7 +23,7 @@ class EditProfileActivity : AppCompatActivity() {
     private var currentUserId: String? = null
     private var currentUserToken: String? = null
 
-    // ✅ MANEJO DE IMAGEN
+    //   MANEJO DE IMAGEN
     private lateinit var imagePickerHelper: ImagePickerHelper
     private var selectedImageBitmap: Bitmap? = null
     private var selectedImageBase64: String? = null
@@ -89,7 +89,7 @@ class EditProfileActivity : AppCompatActivity() {
     }
 
     private fun loadUserCredentials() {
-        // ✅ USAR SESSIONMANAGER EN LUGAR DE SHAREDPREFERENCES
+        //   USAR SESSIONMANAGER EN LUGAR DE SHAREDPREFERENCES
         if (!sessionManager.isLoggedIn()) {
             Toast.makeText(this, "Error: Sesión no válida", Toast.LENGTH_SHORT).show()
             finish()
@@ -105,7 +105,7 @@ class EditProfileActivity : AppCompatActivity() {
             finish()
         }
 
-        // ✅ LOGS PARA DEBUGGING
+        //   LOGS PARA DEBUGGING
         android.util.Log.d("EDIT_PROFILE_DEBUG", "User ID: $currentUserId")
         android.util.Log.d("EDIT_PROFILE_DEBUG", "Token exists: ${currentUserToken != null}")
         android.util.Log.d("EDIT_PROFILE_DEBUG", "Token length: ${currentUserToken?.length ?: 0}")
@@ -132,7 +132,7 @@ class EditProfileActivity : AppCompatActivity() {
                                 binding.etAddress.setText(usuario.direccion ?: "")
                                 binding.etAlias.setText(usuario.alias)
 
-                                // ✅ CARGAR IMAGEN CON GLIDE
+                                //   CARGAR IMAGEN CON GLIDE
                                 ImageUtils.loadImage(
                                     context = this@EditProfileActivity,
                                     imageUrl = usuario.fotoPerfil,
@@ -173,7 +173,7 @@ class EditProfileActivity : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
-        // ✅ SELECTOR DE IMAGEN CON DIALOG
+        //   SELECTOR DE IMAGEN CON DIALOG
         binding.ivProfileImage.setOnClickListener {
             showImagePickerDialog()
         }
@@ -280,7 +280,7 @@ class EditProfileActivity : AppCompatActivity() {
                             }
                         }
 
-                        // ✅ DECIDIR QUE MÉTODO USAR SEGÚN SI HAY IMAGEN NUEVA
+                        //   DECIDIR QUE MÉTODO USAR SEGÚN SI HAY IMAGEN NUEVA
                         val result = if (hasImageChanged && selectedImageBase64 != null) {
                             // Actualizar con imagen
                             userRepository.actualizarUsuarioConImagen(
@@ -297,7 +297,7 @@ class EditProfileActivity : AppCompatActivity() {
 
                         result.onSuccess { usuarioActualizado ->
                             runOnUiThread {
-                                // ✅ ACTUALIZAR SESSIONMANAGER CON LOS NUEVOS DATOS
+                                //   ACTUALIZAR SESSIONMANAGER CON LOS NUEVOS DATOS
                                 val currentToken = sessionManager.getAccessToken()
 
                                 if (currentToken != null) {
@@ -305,7 +305,7 @@ class EditProfileActivity : AppCompatActivity() {
                                     android.util.Log.d("EDIT_PROFILE_DEBUG", "SessionManager actualizado")
                                     android.util.Log.d("EDIT_PROFILE_DEBUG", "Nueva imagen URL: ${usuarioActualizado.fotoPerfil}")
 
-                                    // ✅ ACTUALIZAR IMAGEN EN LA PANTALLA ACTUAL
+                                    //   ACTUALIZAR IMAGEN EN LA PANTALLA ACTUAL
                                     ImageUtils.loadImage(
                                         context = this@EditProfileActivity,
                                         imageUrl = usuarioActualizado.fotoPerfil,

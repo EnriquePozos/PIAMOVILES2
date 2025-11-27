@@ -54,7 +54,7 @@ class PostAdapter(
             binding.tvPostDescription.text = shortDescription
 
             // ============================================
-            // ✅ CARGAR IMAGEN REAL CON GLIDE
+            //   CARGAR IMAGEN REAL CON GLIDE
             // ============================================
             if (ImageUtils.isValidImageUrl(post.imageUrl)) {
                 // Cargar imagen real de la API (URL de Cloudinary)
@@ -64,7 +64,7 @@ class PostAdapter(
                     imageView = binding.ivPostImage,
                     showPlaceholder = true
                 )
-                android.util.Log.d(TAG, "✅ Cargando imagen de URL: ${post.imageUrl}")
+                android.util.Log.d(TAG, "  Cargando imagen de URL: ${post.imageUrl}")
             } else {
                 // ============================================
                 // FALLBACK: IMÁGENES LOCALES PARA DATOS DE EJEMPLO

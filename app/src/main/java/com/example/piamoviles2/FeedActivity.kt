@@ -246,7 +246,7 @@ class FeedActivity : AppCompatActivity() {
 
                 result.fold(
                     onSuccess = { posts ->
-                        android.util.Log.d(TAG, "✅ Feed cargado: ${posts.size} publicaciones")
+                        android.util.Log.d(TAG, "  Feed cargado: ${posts.size} publicaciones")
 
                         // Actualizar listas
                         allPosts.clear()
@@ -269,13 +269,13 @@ class FeedActivity : AppCompatActivity() {
                         }
                     },
                     onFailure = { error ->
-                        android.util.Log.e(TAG, "❌ Error al cargar feed", error)
+                        android.util.Log.e(TAG, "  Error al cargar feed", error)
                         handleApiError(error)
                     }
                 )
 
             } catch (e: Exception) {
-                android.util.Log.e(TAG, "❌ Exception al cargar feed", e)
+                android.util.Log.e(TAG, "  Exception al cargar feed", e)
                 Toast.makeText(this@FeedActivity, "Error inesperado: ${e.message}", Toast.LENGTH_LONG).show()
             } finally {
                 setLoading(false)

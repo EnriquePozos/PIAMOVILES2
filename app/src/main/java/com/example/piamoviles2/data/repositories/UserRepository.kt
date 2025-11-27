@@ -109,15 +109,15 @@ class UserRepository(
             )
 
             if (response.isSuccessful && response.body() != null) {
-                android.util.Log.d("USER_REPO_DEBUG", "✅ Actualización exitosa")
+                android.util.Log.d("USER_REPO_DEBUG", "  Actualización exitosa")
                 Result.success(response.body()!!)
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e("USER_REPO_DEBUG", "❌ Error en respuesta: $errorMsg")
+                android.util.Log.e("USER_REPO_DEBUG", "  Error en respuesta: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e("USER_REPO_DEBUG", "❌ Exception: ${e.message}")
+            android.util.Log.e("USER_REPO_DEBUG", "  Exception: ${e.message}")
             Result.failure(e)
         }
     }
@@ -200,20 +200,20 @@ class UserRepository(
                 apellidoMaterno = apellidoMaternoBody,
                 telefono = telefonoBody,
                 direccion = direccionBody,
-                fotoPerfil = imagePart // ✅ Con imagen
+                fotoPerfil = imagePart //  Con imagen
             )
 
             if (response.isSuccessful && response.body() != null) {
-                android.util.Log.d("USER_REPO_DEBUG", "✅ Actualización con imagen exitosa")
+                android.util.Log.d("USER_REPO_DEBUG", "  Actualización con imagen exitosa")
                 android.util.Log.d("USER_REPO_DEBUG", "Nueva imagen URL: ${response.body()!!.fotoPerfil}")
                 Result.success(response.body()!!)
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e("USER_REPO_DEBUG", "❌ Error en respuesta: $errorMsg")
+                android.util.Log.e("USER_REPO_DEBUG", "  Error en respuesta: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e("USER_REPO_DEBUG", "❌ Exception: ${e.message}")
+            android.util.Log.e("USER_REPO_DEBUG", "  Exception: ${e.message}")
             Result.failure(e)
         }
     }
@@ -245,7 +245,7 @@ class UserRepository(
             val textMediaType = "text/plain".toMediaTypeOrNull()
             val imageMediaType = "image/jpeg".toMediaTypeOrNull()
 
-            // ✅ OPCIÓN 1: Usar URLEncoder para escapar caracteres especiales
+            //   OPCIÓN 1: Usar URLEncoder para escapar caracteres especiales
             val contrasenaEscapada = java.net.URLEncoder.encode(contrasena, "UTF-8")
             android.util.Log.d("API_DEBUG", "Contraseña escapada: '$contrasenaEscapada'")
 

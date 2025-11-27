@@ -25,7 +25,7 @@ data class Post(
             return listOf(
                 Post(
                     id = 1,
-                    apiId = null, // ✅ AGREGAR - Null para datos de ejemplo
+                    apiId = null, //   AGREGAR - Null para datos de ejemplo
                     title = "Tacos al Pastor Deliciosos",
                     description = "Receta tradicional mexicana con carne marinada y piña",
                     imageUrl = "sample_tacos",
@@ -38,7 +38,7 @@ data class Post(
                 ),
                 Post(
                     id = 2,
-                    apiId = null, // ✅ AGREGAR
+                    apiId = null, //   AGREGAR
                     title = "Ensalada César Fresca",
                     description = "Ensalada clásica con aderezo casero y crutones dorados",
                     imageUrl = "sample_salad",
@@ -51,7 +51,7 @@ data class Post(
                 ),
                 Post(
                     id = 3,
-                    apiId = null, // ✅ AGREGAR
+                    apiId = null, //   AGREGAR
                     title = "Pasta Carbonara Auténtica",
                     description = "Receta italiana original con huevos, panceta y queso",
                     imageUrl = "sample_pasta",
@@ -64,7 +64,7 @@ data class Post(
                 ),
                 Post(
                     id = 4,
-                    apiId = null, // ✅ AGREGAR
+                    apiId = null, //   AGREGAR
                     title = "Sandwich Club Premium",
                     description = "Sandwich multicapa con pollo, tocino y vegetales frescos",
                     imageUrl = "sample_sandwich",
