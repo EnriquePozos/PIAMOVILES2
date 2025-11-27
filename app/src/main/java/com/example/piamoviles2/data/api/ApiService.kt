@@ -174,4 +174,52 @@ interface ApiService {
         @Header("Authorization") authorization: String
     ): Response<PublicacionDetalleCompleta>
 
+    // ============================================
+    // 🆕 ENDPOINTS DE REACCIONES (LIKES/DISLIKES)
+    // ============================================
+
+    /**
+     * Agregar o actualizar reacción a una publicación
+     * POST /api/reaccion/publicacion/{id_publicacion}?id_usuario=xxx&tipo_reaccion=like
+     */
+    @POST("api/reaccion/publicacion/{id_publicacion}")
+    suspend fun agregarReaccion(
+        @Path("id_publicacion") idPublicacion: String,
+        @Query("id_usuario") idUsuario: String,
+        @Query("tipo_reaccion") tipoReaccion: String, // "like" o "dislike"
+        @Header("Authorization") authorization: String
+    ): Response<ReaccionResponse>
+
+    /**
+     * Eliminar reacción de una publicación
+     * DELETE /api/reaccion/publicacion/{id_publicacion}?id_usuario=xxx
+     */
+    @DELETE("api/reaccion/publicacion/{id_publicacion}")
+    suspend fun eliminarReaccion(
+        @Path("id_publicacion") idPublicacion: String,
+        @Query("id_usuario") idUsuario: String,
+        @Header("Authorization") authorization: String
+    ): Response<Void>
+
+    /**
+     * Obtener conteo de reacciones de una publicación
+     * GET /api/reaccion/publicacion/{id_publicacion}/conteo
+     */
+    @GET("api/reaccion/publicacion/{id_publicacion}/conteo")
+    suspend fun obtenerConteoReacciones(
+        @Path("id_publicacion") idPublicacion: String,
+        @Header("Authorization") authorization: String
+    ): Response<ConteoReaccionesResponse>
+
+    /**
+     * Verificar si un usuario ha reaccionado a una publicación
+     * GET /api/reaccion/publicacion/{id_publicacion}/usuario/{id_usuario}
+     */
+    @GET("api/reaccion/publicacion/{id_publicacion}/usuario/{id_usuario}")
+    suspend fun verificarReaccionUsuario(
+        @Path("id_publicacion") idPublicacion: String,
+        @Path("id_usuario") idUsuario: String,
+        @Header("Authorization") authorization: String
+    ): Response<VerificarReaccionResponse>
+
 }
