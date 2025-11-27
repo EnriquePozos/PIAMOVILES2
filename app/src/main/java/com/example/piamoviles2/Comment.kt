@@ -5,6 +5,7 @@ package com.example.piamoviles2
  */
 data class Comment(
     val id: Int,
+    val apiId: String? = null,
     val user: String,
     val text: String,
     val timestamp: String,

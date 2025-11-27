@@ -1,5 +1,3 @@
-// Ubicación: app/src/main/java/com/example/piamoviles2/PostDetailActivity.kt
-
 package com.example.piamoviles2
 
 import android.content.Intent
@@ -10,6 +8,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.piamoviles2.databinding.ActivityPostDetailBinding
 import com.example.piamoviles2.data.repositories.PublicacionRepository
+import com.example.piamoviles2.data.repositories.ComentarioRepository
 import com.example.piamoviles2.data.models.PublicacionDetalle
 import com.example.piamoviles2.data.models.VerificarReaccionResponse
 import com.example.piamoviles2.data.models.ConteoReaccionesResponse
@@ -28,15 +27,18 @@ class PostDetailActivity : AppCompatActivity() {
     private var currentLikeState: LikeState = LikeState.NONE
 
     private lateinit var publicacionRepository: PublicacionRepository
+    private lateinit var comentarioRepository: ComentarioRepository
     private lateinit var sessionManager: SessionManager
     private var isLoading = false
 
-    // ============================================
-    // 🆕 VARIABLES PARA REACCIONES REALES
-    // ============================================
+    // Variables para reacciones reales
     private var currentLikes = 0
     private var currentDislikes = 0
     private var isLoadingReaction = false
+
+    // Variables para comentarios reales
+    private var isLoadingComments = false
+    private var isCreatingComment = false
 
     enum class LikeState {
         NONE, LIKED, DISLIKED
@@ -55,13 +57,13 @@ class PostDetailActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         publicacionRepository = PublicacionRepository()
+        comentarioRepository = ComentarioRepository()
         sessionManager = SessionManager(this)
 
         setupHeader()
         setupRecyclerView()
         setupClickListeners()
         loadPostData()
-        loadComments()
     }
 
     private fun setupHeader() {
@@ -76,7 +78,7 @@ class PostDetailActivity : AppCompatActivity() {
             onCommentDislike = { comment -> handleCommentDislike(comment) },
             onReplyLike = { reply -> handleReplyLike(reply) },
             onReplyDislike = { reply -> handleReplyDislike(reply) },
-            onReplySubmit = { comment, replyText -> handleReplySubmit(comment, replyText) }
+            onReplySubmit = { comment, replyText -> handleReplySubmitReal(comment, replyText) }
         )
 
         binding.rvComments.apply {
@@ -86,9 +88,7 @@ class PostDetailActivity : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
-        // ============================================
-        // 🆕 BOTÓN LIKE CON API REAL
-        // ============================================
+        // Botón Like con API real
         binding.btnLike.setOnClickListener {
             if (isLoadingReaction) {
                 android.util.Log.d(TAG, "Ya hay una operación en curso, ignorando click")
@@ -108,9 +108,7 @@ class PostDetailActivity : AppCompatActivity() {
             performLikeAction(apiId, currentUser.id, token)
         }
 
-        // ============================================
-        // 🆕 BOTÓN DISLIKE CON API REAL
-        // ============================================
+        // Botón Dislike con API real
         binding.btnDislike.setOnClickListener {
             if (isLoadingReaction) {
                 android.util.Log.d(TAG, "Ya hay una operación en curso, ignorando click")
@@ -144,45 +142,16 @@ class PostDetailActivity : AppCompatActivity() {
             }
         }
 
-        // Campo para agregar comentario nuevo
+        // Campo para agregar comentario nuevo con API real
         binding.btnSendComment.setOnClickListener {
-            val commentText = binding.etNewComment.text.toString().trim()
-            if (commentText.isNotEmpty()) {
-                // Crear nuevo comentario principal
-                val newComment = Comment(
-                    id = System.currentTimeMillis().toInt(), // ID temporal único
-                    user = "Usuario Actual", // En una app real sería el usuario logueado
-                    text = commentText,
-                    timestamp = "Ahora",
-                    userLikeState = Comment.LikeState.NONE,
-                    replies = mutableListOf()
-                )
-
-                // Agregar a la lista de comentarios
-                comments.add(newComment)
-
-                // Limpiar el campo de texto
-                binding.etNewComment.text.clear()
-
-                // Actualizar el RecyclerView
-                commentAdapter.notifyItemInserted(comments.size - 1)
-
-                // Scroll al nuevo comentario
-                binding.rvComments.scrollToPosition(comments.size - 1)
-                Toast.makeText(this, "Comentario agregado", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(this, "Escribe un comentario", Toast.LENGTH_SHORT).show()
-            }
+            handleCreateCommentReal()
         }
     }
 
     // ============================================
-    // 🆕 MÉTODOS PARA LLAMADAS API REALES
+    // MÉTODOS PARA LLAMADAS API REALES - REACCIONES
     // ============================================
 
-    /**
-     * Ejecutar toggle like con API
-     */
     private fun performLikeAction(apiId: String, userId: String, token: String) {
         isLoadingReaction = true
         updateReactionButtonsLoading(true)
@@ -197,37 +166,34 @@ class PostDetailActivity : AppCompatActivity() {
 
                 result.fold(
                     onSuccess = { estadoFinal ->
-                        android.util.Log.d(TAG, "✅ Toggle like exitoso")
+                        android.util.Log.d(TAG, "Toggle like exitoso")
                         android.util.Log.d(TAG, "Estado final: tiene=${estadoFinal.tieneReaccion}, tipo=${estadoFinal.tipoReaccion}")
 
-                        // Actualizar estado local
                         currentLikeState = when {
                             estadoFinal.esLike() -> LikeState.LIKED
                             estadoFinal.esDislike() -> LikeState.DISLIKED
                             else -> LikeState.NONE
                         }
 
-                        // Mostrar mensaje apropiado
                         val message = when (currentLikeState) {
                             LikeState.LIKED -> "Te gusta esta publicación"
                             LikeState.NONE -> "Like removido"
-                            LikeState.DISLIKED -> "Te gusta esta publicación" // Cambió de dislike a like
+                            LikeState.DISLIKED -> "Te gusta esta publicación"
                         }
                         Toast.makeText(this@PostDetailActivity, message, Toast.LENGTH_SHORT).show()
 
-                        // Recargar contadores
                         loadReactionCounts(apiId, token)
                     },
                     onFailure = { error ->
-                        android.util.Log.e(TAG, "❌ Error en toggle like: ${error.message}")
+                        android.util.Log.e(TAG, "Error en toggle like: ${error.message}")
                         Toast.makeText(this@PostDetailActivity, "Error al procesar like", Toast.LENGTH_SHORT).show()
-                        updateLikeButtons() // Restaurar estado visual
+                        updateLikeButtons()
                     }
                 )
             } catch (e: Exception) {
-                android.util.Log.e(TAG, "❌ Exception en performLikeAction: ${e.message}")
+                android.util.Log.e(TAG, "Exception en performLikeAction: ${e.message}")
                 Toast.makeText(this@PostDetailActivity, "Error inesperado", Toast.LENGTH_SHORT).show()
-                updateLikeButtons() // Restaurar estado visual
+                updateLikeButtons()
             } finally {
                 isLoadingReaction = false
                 updateReactionButtonsLoading(false)
@@ -235,9 +201,6 @@ class PostDetailActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Ejecutar toggle dislike con API
-     */
     private fun performDislikeAction(apiId: String, userId: String, token: String) {
         isLoadingReaction = true
         updateReactionButtonsLoading(true)
@@ -252,37 +215,34 @@ class PostDetailActivity : AppCompatActivity() {
 
                 result.fold(
                     onSuccess = { estadoFinal ->
-                        android.util.Log.d(TAG, "✅ Toggle dislike exitoso")
+                        android.util.Log.d(TAG, "Toggle dislike exitoso")
                         android.util.Log.d(TAG, "Estado final: tiene=${estadoFinal.tieneReaccion}, tipo=${estadoFinal.tipoReaccion}")
 
-                        // Actualizar estado local
                         currentLikeState = when {
                             estadoFinal.esLike() -> LikeState.LIKED
                             estadoFinal.esDislike() -> LikeState.DISLIKED
                             else -> LikeState.NONE
                         }
 
-                        // Mostrar mensaje apropiado
                         val message = when (currentLikeState) {
                             LikeState.DISLIKED -> "No te gusta esta publicación"
                             LikeState.NONE -> "Dislike removido"
-                            LikeState.LIKED -> "No te gusta esta publicación" // Cambió de like a dislike
+                            LikeState.LIKED -> "No te gusta esta publicación"
                         }
                         Toast.makeText(this@PostDetailActivity, message, Toast.LENGTH_SHORT).show()
 
-                        // Recargar contadores
                         loadReactionCounts(apiId, token)
                     },
                     onFailure = { error ->
-                        android.util.Log.e(TAG, "❌ Error en toggle dislike: ${error.message}")
+                        android.util.Log.e(TAG, "Error en toggle dislike: ${error.message}")
                         Toast.makeText(this@PostDetailActivity, "Error al procesar dislike", Toast.LENGTH_SHORT).show()
-                        updateLikeButtons() // Restaurar estado visual
+                        updateLikeButtons()
                     }
                 )
             } catch (e: Exception) {
-                android.util.Log.e(TAG, "❌ Exception en performDislikeAction: ${e.message}")
+                android.util.Log.e(TAG, "Exception en performDislikeAction: ${e.message}")
                 Toast.makeText(this@PostDetailActivity, "Error inesperado", Toast.LENGTH_SHORT).show()
-                updateLikeButtons() // Restaurar estado visual
+                updateLikeButtons()
             } finally {
                 isLoadingReaction = false
                 updateReactionButtonsLoading(false)
@@ -290,9 +250,6 @@ class PostDetailActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Cargar estado inicial de reacciones del usuario
-     */
     private fun loadInitialReactionState(apiId: String, userId: String, token: String) {
         CoroutineScope(Dispatchers.Main).launch {
             try {
@@ -304,7 +261,7 @@ class PostDetailActivity : AppCompatActivity() {
 
                 result.fold(
                     onSuccess = { verificacion ->
-                        android.util.Log.d(TAG, "✅ Estado inicial cargado")
+                        android.util.Log.d(TAG, "Estado inicial cargado")
                         android.util.Log.d(TAG, "Tiene reacción: ${verificacion.tieneReaccion}, Tipo: ${verificacion.tipoReaccion}")
 
                         currentLikeState = when {
@@ -316,23 +273,19 @@ class PostDetailActivity : AppCompatActivity() {
                         updateLikeButtons()
                     },
                     onFailure = { error ->
-                        android.util.Log.e(TAG, "❌ Error al cargar estado inicial: ${error.message}")
-                        // No mostrar error al usuario, usar estado por defecto
+                        android.util.Log.e(TAG, "Error al cargar estado inicial: ${error.message}")
                         currentLikeState = LikeState.NONE
                         updateLikeButtons()
                     }
                 )
             } catch (e: Exception) {
-                android.util.Log.e(TAG, "❌ Exception en loadInitialReactionState: ${e.message}")
+                android.util.Log.e(TAG, "Exception en loadInitialReactionState: ${e.message}")
                 currentLikeState = LikeState.NONE
                 updateLikeButtons()
             }
         }
     }
 
-    /**
-     * Cargar contadores de reacciones
-     */
     private fun loadReactionCounts(apiId: String, token: String) {
         CoroutineScope(Dispatchers.Main).launch {
             try {
@@ -344,60 +297,250 @@ class PostDetailActivity : AppCompatActivity() {
 
                 result.fold(
                     onSuccess = { conteo ->
-                        android.util.Log.d(TAG, "✅ Conteos cargados - Likes: ${conteo.likes}, Dislikes: ${conteo.dislikes}")
+                        android.util.Log.d(TAG, "Conteos cargados - Likes: ${conteo.likes}, Dislikes: ${conteo.dislikes}")
 
                         currentLikes = conteo.likes
                         currentDislikes = conteo.dislikes
 
-                        // Actualizar UI con nuevos contadores
                         updateReactionCounters()
-
-                        // Actualizar currentPost también
-                        // currentPost?.likesCount = conteo.total
                     },
                     onFailure = { error ->
-                        android.util.Log.e(TAG, "❌ Error al cargar conteos: ${error.message}")
-                        // No mostrar error al usuario, mantener contadores actuales
+                        android.util.Log.e(TAG, "Error al cargar conteos: ${error.message}")
                     }
                 )
             } catch (e: Exception) {
-                android.util.Log.e(TAG, "❌ Exception en loadReactionCounts: ${e.message}")
+                android.util.Log.e(TAG, "Exception en loadReactionCounts: ${e.message}")
             }
         }
     }
 
-    /**
-     * Actualizar contadores en la UI
-     */
     private fun updateReactionCounters() {
-        // TODO: Si tienes TextViews para mostrar contadores, actualízalos aquí
-        // Por ejemplo:
-        // binding.tvLikeCount.text = currentLikes.toString()
-        // binding.tvDislikeCount.text = currentDislikes.toString()
-
         android.util.Log.d(TAG, "Contadores actualizados - Likes: $currentLikes, Dislikes: $currentDislikes")
     }
 
-    /**
-     * Mostrar estado de loading en botones
-     */
     private fun updateReactionButtonsLoading(loading: Boolean) {
         binding.btnLike.isEnabled = !loading
         binding.btnDislike.isEnabled = !loading
 
         if (loading) {
-            // Opcional: cambiar aspecto visual durante loading
             binding.btnLike.alpha = 0.5f
             binding.btnDislike.alpha = 0.5f
         } else {
             binding.btnLike.alpha = 1.0f
             binding.btnDislike.alpha = 1.0f
-            updateLikeButtons() // Restaurar colores normales
+            updateLikeButtons()
         }
     }
 
     // ============================================
-    // MÉTODOS EXISTENTES (SIN CAMBIOS)
+    // MÉTODOS PARA LLAMADAS API REALES - COMENTARIOS
+    // ============================================
+
+    /**
+     * Cargar comentarios reales desde la API
+     */
+    private fun loadCommentsReal() {
+        val apiId = currentPost?.apiId
+        val token = sessionManager.getAccessToken()
+
+        if (apiId == null || token == null) {
+            android.util.Log.w(TAG, "No se puede cargar comentarios: apiId=$apiId, token presente=${token != null}")
+            loadCommentsMock() // Fallback a datos mock
+            return
+        }
+
+        if (isLoadingComments) {
+            android.util.Log.d(TAG, "Ya se están cargando comentarios, ignorando")
+            return
+        }
+
+        isLoadingComments = true
+        android.util.Log.d(TAG, "=== loadCommentsReal ===")
+        android.util.Log.d(TAG, "Cargando comentarios para publicación: $apiId")
+
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    comentarioRepository.obtenerComentariosConvertidos(apiId, token)
+                }
+
+                result.fold(
+                    onSuccess = { comentariosReales ->
+                        android.util.Log.d(TAG, "Comentarios reales cargados: ${comentariosReales.size}")
+
+                        comments.clear()
+                        comments.addAll(comentariosReales)
+                        commentAdapter.notifyDataSetChanged()
+
+                        if (comentariosReales.isEmpty()) {
+                            android.util.Log.d(TAG, "No hay comentarios, mostrando mensaje")
+                        }
+                    },
+                    onFailure = { error ->
+                        android.util.Log.e(TAG, "Error al cargar comentarios reales: ${error.message}")
+                        Toast.makeText(this@PostDetailActivity, "Error al cargar comentarios", Toast.LENGTH_SHORT).show()
+
+                        // Fallback a datos mock si falla la API
+                        loadCommentsMock()
+                    }
+                )
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "Exception en loadCommentsReal: ${e.message}")
+                Toast.makeText(this@PostDetailActivity, "Error inesperado al cargar comentarios", Toast.LENGTH_SHORT).show()
+                loadCommentsMock()
+            } finally {
+                isLoadingComments = false
+            }
+        }
+    }
+
+    /**
+     * Crear comentario real usando la API
+     */
+    private fun handleCreateCommentReal() {
+        val commentText = binding.etNewComment.text.toString().trim()
+        if (commentText.isEmpty()) {
+            Toast.makeText(this, "Escribe un comentario", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val apiId = currentPost?.apiId
+        val token = sessionManager.getAccessToken()
+        val currentUser = sessionManager.getCurrentUser()
+
+        if (apiId == null || token == null || currentUser == null) {
+            Toast.makeText(this, "Error: Sesión no válida", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (isCreatingComment) {
+            android.util.Log.d(TAG, "Ya se está creando un comentario, ignorando")
+            return
+        }
+
+        isCreatingComment = true
+        android.util.Log.d(TAG, "=== handleCreateCommentReal ===")
+        android.util.Log.d(TAG, "Creando comentario: ${commentText.take(50)}...")
+
+        // Deshabilitar botón y mostrar loading
+        binding.btnSendComment.isEnabled = false
+
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    comentarioRepository.crearComentarioConvertido(
+                        idPublicacion = apiId,
+                        comentario = commentText,
+                        idUsuario = currentUser.id,
+                        token = token
+                    )
+                }
+
+                result.fold(
+                    onSuccess = { nuevoComentario ->
+                        android.util.Log.d(TAG, "Comentario creado exitosamente")
+
+                        // Limpiar el campo de texto
+                        binding.etNewComment.text.clear()
+
+                        // Agregar a la lista local
+                        comments.add(nuevoComentario)
+                        commentAdapter.notifyItemInserted(comments.size - 1)
+
+                        // Scroll al nuevo comentario
+                        binding.rvComments.scrollToPosition(comments.size - 1)
+
+                        Toast.makeText(this@PostDetailActivity, "Comentario agregado", Toast.LENGTH_SHORT).show()
+                    },
+                    onFailure = { error ->
+                        android.util.Log.e(TAG, "Error al crear comentario: ${error.message}")
+                        Toast.makeText(this@PostDetailActivity, "Error al crear comentario", Toast.LENGTH_SHORT).show()
+                    }
+                )
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "Exception en handleCreateCommentReal: ${e.message}")
+                Toast.makeText(this@PostDetailActivity, "Error inesperado", Toast.LENGTH_SHORT).show()
+            } finally {
+                isCreatingComment = false
+                binding.btnSendComment.isEnabled = true
+            }
+        }
+    }
+
+    /**
+     * Crear respuesta real usando la API
+     */
+    private fun handleReplySubmitReal(parentComment: Comment, replyText: String) {
+        if (replyText.trim().isEmpty()) {
+            Toast.makeText(this, "Escribe una respuesta", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val token = sessionManager.getAccessToken()
+        val currentUser = sessionManager.getCurrentUser()
+
+        if (token == null || currentUser == null) {
+            Toast.makeText(this, "Error: Sesión no válida", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Necesitamos el ID del comentario API, no el hash local
+        // Por ahora usamos el approach de convertir el hash de vuelta o usar una búsqueda
+        val comentarioApiId = findApiIdFromComment(parentComment)
+        if (comentarioApiId == null) {
+            android.util.Log.w(TAG, "No se pudo encontrar API ID para el comentario")
+            handleReplySubmitMock(parentComment, replyText) // Fallback
+            return
+        }
+
+        android.util.Log.d(TAG, "=== handleReplySubmitReal ===")
+        android.util.Log.d(TAG, "Creando respuesta para comentario: $comentarioApiId")
+
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    comentarioRepository.crearRespuestaConvertida(
+                        idComentarioPadre = comentarioApiId,
+                        comentario = replyText.trim(),
+                        idUsuario = currentUser.id,
+                        token = token
+                    )
+                }
+
+                result.fold(
+                    onSuccess = { nuevaRespuesta ->
+                        android.util.Log.d(TAG, "Respuesta creada exitosamente")
+
+                        parentComment.replies.add(nuevaRespuesta)
+                        commentAdapter.notifyDataSetChanged()
+
+                        Toast.makeText(this@PostDetailActivity, "Respuesta agregada", Toast.LENGTH_SHORT).show()
+                    },
+                    onFailure = { error ->
+                        android.util.Log.e(TAG, "Error al crear respuesta: ${error.message}")
+                        Toast.makeText(this@PostDetailActivity, "Error al crear respuesta", Toast.LENGTH_SHORT).show()
+
+                        // Fallback a lógica mock
+                        handleReplySubmitMock(parentComment, replyText)
+                    }
+                )
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "Exception en handleReplySubmitReal: ${e.message}")
+                Toast.makeText(this@PostDetailActivity, "Error inesperado", Toast.LENGTH_SHORT).show()
+                handleReplySubmitMock(parentComment, replyText)
+            }
+        }
+    }
+
+    /**
+     * Helper para encontrar el API ID de un comentario a partir del objeto Comment local
+     */
+    private fun findApiIdFromComment(comment: Comment): String? {
+        return comment.apiId
+    }
+
+    // ============================================
+    // MÉTODOS EXISTENTES (MANTENER COMPATIBILIDAD)
     // ============================================
 
     private fun setLikeState(newState: LikeState) {
@@ -450,6 +593,7 @@ class PostDetailActivity : AppCompatActivity() {
             if (samplePost != null) {
                 currentPost = samplePost
                 displayPostData(samplePost)
+                loadCommentsMock() // Para datos de ejemplo, usar comentarios mock
             } else {
                 showError("Publicación no encontrada")
             }
@@ -478,30 +622,27 @@ class PostDetailActivity : AppCompatActivity() {
 
                 result.fold(
                     onSuccess = { publicacion ->
-                        android.util.Log.d(TAG, "✅ Publicación cargada: ${publicacion.titulo}")
+                        android.util.Log.d(TAG, "Publicación cargada: ${publicacion.titulo}")
 
-                        // Convertir a Post para mantener compatibilidad
                         currentPost = convertirDetalleAPost(publicacion, currentUser?.id ?: "")
                         displayPostData(currentPost!!)
 
-                        // ============================================
-                        // 🆕 CARGAR ESTADO DE REACCIONES
-                        // ============================================
+                        // Cargar estado de reacciones
                         if (currentUser != null) {
                             loadInitialReactionState(apiId, currentUser.id, token)
                             loadReactionCounts(apiId, token)
                         }
 
-                        // Usar comentarios de ejemplo por ahora
-                        loadComments()
+                        // Cargar comentarios reales
+                        loadCommentsReal()
                     },
                     onFailure = { error ->
-                        android.util.Log.e(TAG, "❌ Error: ${error.message}")
+                        android.util.Log.e(TAG, "Error: ${error.message}")
                         showError("Error al cargar publicación: ${error.message}")
                     }
                 )
             } catch (e: Exception) {
-                android.util.Log.e(TAG, "❌ Exception: ${e.message}")
+                android.util.Log.e(TAG, "Exception: ${e.message}")
                 showError("Error inesperado: ${e.message}")
             } finally {
                 setLoading(false)
@@ -509,12 +650,9 @@ class PostDetailActivity : AppCompatActivity() {
         }
     }
 
-    // CORREGIDO: Usar PublicacionDetalle en lugar de PublicacionDetalleCompleta
     private fun convertirDetalleAPost(detalle: PublicacionDetalle, currentUserId: String): Post {
-        // Usar la primera imagen como preview - CORREGIDO: multimedia en lugar de multimediaList
         val imagenPreview = detalle.multimedia.firstOrNull { it.tipo == "imagen" }?.url ?: ""
 
-        // Seleccionar fecha apropiada
         val fechaAUsar = when {
             detalle.estatus == "BORRADOR" && !detalle.fechaCreacion.isNullOrEmpty() -> detalle.fechaCreacion
             !detalle.fechaPublicacion.isNullOrEmpty() -> detalle.fechaPublicacion
@@ -558,9 +696,9 @@ class PostDetailActivity : AppCompatActivity() {
         binding.tvPostAuthor.text = post.author
         binding.tvPostDescription.text = post.description
 
-        // CARGAR IMAGEN REAL DESDE CLOUDINARY
+        // Cargar imagen real desde Cloudinary
         if (ImageUtils.isValidImageUrl(post.imageUrl)) {
-            android.util.Log.d(TAG, "✅ Cargando imagen desde Cloudinary: ${post.imageUrl}")
+            android.util.Log.d(TAG, "Cargando imagen desde Cloudinary: ${post.imageUrl}")
             ImageUtils.loadPostImage(
                 context = this,
                 imageUrl = post.imageUrl,
@@ -569,12 +707,11 @@ class PostDetailActivity : AppCompatActivity() {
             )
             binding.ivPostImage2.visibility = View.GONE
         } else {
-            android.util.Log.d(TAG, "📱 URL no válida, usando placeholder")
+            android.util.Log.d(TAG, "URL no válida, usando placeholder")
             binding.ivPostImage1.setImageResource(R.mipmap.ic_launcher)
             binding.ivPostImage2.visibility = View.GONE
         }
 
-        // Actualizar estado de favorito
         updateFavoriteButton()
     }
 
@@ -610,13 +747,31 @@ class PostDetailActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadComments() {
-        // Si no hay comentarios desde API, usar datos de ejemplo
+    // ============================================
+    // MÉTODOS MOCK (FALLBACK Y COMPATIBILIDAD)
+    // ============================================
+
+    private fun loadCommentsMock() {
         if (comments.isEmpty()) {
             comments.clear()
             comments.addAll(Comment.getSampleComments())
             commentAdapter.notifyDataSetChanged()
+            android.util.Log.d(TAG, "Comentarios mock cargados: ${comments.size}")
         }
+    }
+
+    private fun handleReplySubmitMock(parentComment: Comment, replyText: String) {
+        val newReply = Comment.Reply(
+            id = System.currentTimeMillis().toInt(),
+            user = "Usuario Actual",
+            text = replyText.trim(),
+            timestamp = "Ahora",
+            userLikeState = Comment.LikeState.NONE
+        )
+
+        parentComment.replies.add(newReply)
+        Toast.makeText(this, "Respuesta agregada", Toast.LENGTH_SHORT).show()
+        commentAdapter.notifyDataSetChanged()
     }
 
     // Manejo de likes en comentarios principales (sin cambios)
@@ -656,7 +811,6 @@ class PostDetailActivity : AppCompatActivity() {
         commentAdapter.notifyDataSetChanged()
     }
 
-    // Manejo de likes en respuestas (sin cambios)
     private fun handleReplyLike(reply: Comment.Reply) {
         when (reply.userLikeState) {
             Comment.LikeState.NONE -> {
@@ -690,29 +844,6 @@ class PostDetailActivity : AppCompatActivity() {
                 Toast.makeText(this, "No te gusta esta respuesta", Toast.LENGTH_SHORT).show()
             }
         }
-        commentAdapter.notifyDataSetChanged()
-    }
-
-    // Manejo de envío de respuestas (sin cambios)
-    private fun handleReplySubmit(parentComment: Comment, replyText: String) {
-        if (replyText.trim().isEmpty()) {
-            Toast.makeText(this, "Escribe una respuesta", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        // Crear nueva respuesta
-        val newReply = Comment.Reply(
-            id = System.currentTimeMillis().toInt(), // ID temporal
-            user = "Usuario Actual", // En una app real sería el usuario logueado
-            text = replyText.trim(),
-            timestamp = "Ahora",
-            userLikeState = Comment.LikeState.NONE
-        )
-
-        // Agregar la respuesta al comentario padre
-        parentComment.replies.add(newReply)
-
-        Toast.makeText(this, "Respuesta agregada", Toast.LENGTH_SHORT).show()
         commentAdapter.notifyDataSetChanged()
     }
 }

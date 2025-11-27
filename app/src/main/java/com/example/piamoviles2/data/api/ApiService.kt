@@ -222,4 +222,101 @@ interface ApiService {
         @Header("Authorization") authorization: String
     ): Response<VerificarReaccionResponse>
 
+    // ============================================
+    // 🆕 ENDPOINTS DE COMENTARIOS
+    // ============================================
+
+    /**
+     * Crear comentario en una publicación
+     * POST /api/comentario/publicacion/{id_publicacion}?comentario=xxx&id_usuario=xxx
+     */
+    @POST("api/comentario/publicacion/{id_publicacion}")
+    suspend fun crearComentarioEnPublicacion(
+        @Path("id_publicacion") idPublicacion: String,
+        @Query("comentario") comentario: String,
+        @Query("id_usuario") idUsuario: String,
+        @Header("Authorization") authorization: String
+    ): Response<ComentarioResponse>
+
+    /**
+     * Crear respuesta a un comentario
+     * POST /api/comentario/respuesta/{id_comentario_padre}?comentario=xxx&id_usuario=xxx
+     */
+    @POST("api/comentario/respuesta/{id_comentario_padre}")
+    suspend fun crearRespuestaAComentario(
+        @Path("id_comentario_padre") idComentarioPadre: String,
+        @Query("comentario") comentario: String,
+        @Query("id_usuario") idUsuario: String,
+        @Header("Authorization") authorization: String
+    ): Response<ComentarioResponse>
+
+    /**
+     * Obtener comentarios de una publicación
+     * GET /api/comentario/publicacion/{id_publicacion}?skip=0&limit=20
+     */
+    @GET("api/comentario/publicacion/{id_publicacion}")
+    suspend fun obtenerComentariosDePublicacion(
+        @Path("id_publicacion") idPublicacion: String,
+        @Query("skip") skip: Int = 0,
+        @Query("limit") limit: Int = 20,
+        @Header("Authorization") authorization: String
+    ): Response<List<ComentarioResponse>>
+
+    /**
+     * Obtener respuestas de un comentario
+     * GET /api/comentario/{id_comentario}/respuestas?skip=0&limit=10
+     */
+    @GET("api/comentario/{id_comentario}/respuestas")
+    suspend fun obtenerRespuestasDeComentario(
+        @Path("id_comentario") idComentario: String,
+        @Query("skip") skip: Int = 0,
+        @Query("limit") limit: Int = 10,
+        @Header("Authorization") authorization: String
+    ): Response<List<ComentarioResponse>>
+
+    /**
+     * Obtener comentario específico por ID
+     * GET /api/comentario/{id_comentario}
+     */
+    @GET("api/comentario/{id_comentario}")
+    suspend fun obtenerComentario(
+        @Path("id_comentario") idComentario: String,
+        @Header("Authorization") authorization: String
+    ): Response<ComentarioResponse>
+
+    /**
+     * Obtener comentarios de un usuario
+     * GET /api/comentario/usuario/{id_usuario}?skip=0&limit=20
+     */
+    @GET("api/comentario/usuario/{id_usuario}")
+    suspend fun obtenerComentariosDeUsuario(
+        @Path("id_usuario") idUsuario: String,
+        @Query("skip") skip: Int = 0,
+        @Query("limit") limit: Int = 20,
+        @Header("Authorization") authorization: String
+    ): Response<List<ComentarioResponse>>
+
+    /**
+     * Editar comentario existente
+     * PUT /api/comentario/{id_comentario}?id_usuario=xxx
+     */
+    @PUT("api/comentario/{id_comentario}")
+    suspend fun editarComentario(
+        @Path("id_comentario") idComentario: String,
+        @Body request: ComentarioUpdateRequest,
+        @Query("id_usuario") idUsuario: String,
+        @Header("Authorization") authorization: String
+    ): Response<ComentarioResponse>
+
+    /**
+     * Eliminar comentario
+     * DELETE /api/comentario/{id_comentario}?id_usuario=xxx
+     */
+    @DELETE("api/comentario/{id_comentario}")
+    suspend fun eliminarComentario(
+        @Path("id_comentario") idComentario: String,
+        @Query("id_usuario") idUsuario: String,
+        @Header("Authorization") authorization: String
+    ): Response<Void>
+
 }
