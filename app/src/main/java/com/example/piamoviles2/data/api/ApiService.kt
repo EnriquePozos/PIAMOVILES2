@@ -319,4 +319,67 @@ interface ApiService {
         @Header("Authorization") authorization: String
     ): Response<Void>
 
+    // ============================================
+    // ENDPOINTS DE FAVORITOS
+    // ============================================
+
+    /**
+     * Agregar publicación a favoritos
+     * POST /api/favoritos/add_favorito/{id_usuario}/{id_publicacion}
+     */
+    @POST("api/favoritos/add_favorito/{id_usuario}/{id_publicacion}")
+    suspend fun agregarFavorito(
+        @Path("id_usuario") idUsuario: String,
+        @Path("id_publicacion") idPublicacion: String,
+        @Header("Authorization") authorization: String
+    ): Response<FavoritoResponse>
+
+    /**
+     * Quitar publicación de favoritos
+     * DELETE /api/favoritos/remove_favorito/{id_usuario}/{id_publicacion}
+     */
+    @DELETE("api/favoritos/remove_favorito/{id_usuario}/{id_publicacion}")
+    suspend fun quitarFavorito(
+        @Path("id_usuario") idUsuario: String,
+        @Path("id_publicacion") idPublicacion: String,
+        @Header("Authorization") authorization: String
+    ): Response<Void>
+
+    // ============================================
+    // ENDPOINTS DE REACCIONES EN COMENTARIOS
+    // ============================================
+
+    /**
+     * Agregar o actualizar reacción a un comentario
+     * POST /api/reaccion/comentario/{id_comentario}?id_usuario=xxx&tipo_reaccion=like
+     */
+    @POST("api/reaccion/comentario/{id_comentario}")
+    suspend fun agregarReaccionComentario(
+        @Path("id_comentario") idComentario: String,
+        @Query("id_usuario") idUsuario: String,
+        @Query("tipo_reaccion") tipoReaccion: String, // "like" o "dislike"
+        @Header("Authorization") authorization: String
+    ): Response<ReaccionResponse>
+
+    /**
+     * Eliminar reacción de un comentario
+     * DELETE /api/reaccion/comentario/{id_comentario}?id_usuario=xxx
+     */
+    @DELETE("api/reaccion/comentario/{id_comentario}")
+    suspend fun eliminarReaccionComentario(
+        @Path("id_comentario") idComentario: String,
+        @Query("id_usuario") idUsuario: String,
+        @Header("Authorization") authorization: String
+    ): Response<Void>
+
+    /**
+     * Obtener conteo de reacciones de un comentario
+     * GET /api/reaccion/comentario/{id_comentario}/conteo
+     */
+    @GET("api/reaccion/comentario/{id_comentario}/conteo")
+    suspend fun obtenerConteoReaccionesComentario(
+        @Path("id_comentario") idComentario: String,
+        @Header("Authorization") authorization: String
+    ): Response<ConteoReaccionesComentarioResponse>
+
 }

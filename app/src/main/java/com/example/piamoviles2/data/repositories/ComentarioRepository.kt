@@ -1,5 +1,3 @@
-// Ubicación: app/src/main/java/com/example/piamoviles2/data/repositories/ComentarioRepository.kt
-
 package com.example.piamoviles2.data.repositories
 
 import com.example.piamoviles2.data.api.ApiService
@@ -370,7 +368,7 @@ class ComentarioRepository(
                         comment
                     }
 
-                    android.util.Log.d(TAG, " Convertidos ${commentsConvertidos.size} comentarios con respuestas")
+                    android.util.Log.d(TAG, "✅ Convertidos ${commentsConvertidos.size} comentarios con respuestas")
                     Result.success(commentsConvertidos)
                 },
                 onFailure = { error ->
@@ -451,6 +449,240 @@ class ComentarioRepository(
     }
 
     // ============================================
+    // REACCIONES EN COMENTARIOS
+    // ============================================
+
+    /**
+     * Agregar o actualizar reacción a un comentario
+     * @param idComentario ID del comentario
+     * @param idUsuario ID del usuario
+     * @param tipoReaccion "like" o "dislike"
+     * @param token Token de autorización
+     * @return Result<ReaccionResponse>
+     */
+    suspend fun agregarReaccionComentario(
+        idComentario: String,
+        idUsuario: String,
+        tipoReaccion: String,
+        token: String
+    ): Result<ReaccionResponse> {
+        return try {
+            android.util.Log.d(TAG, "=== agregarReaccionComentario ===")
+            android.util.Log.d(TAG, "ID Comentario: $idComentario")
+            android.util.Log.d(TAG, "ID Usuario: $idUsuario")
+            android.util.Log.d(TAG, "Tipo Reacción: $tipoReaccion")
+
+            val response = apiService.agregarReaccionComentario(
+                idComentario = idComentario,
+                idUsuario = idUsuario,
+                tipoReaccion = tipoReaccion,
+                authorization = "Bearer $token"
+            )
+
+            android.util.Log.d(TAG, "Response code: ${response.code()}")
+
+            if (response.isSuccessful && response.body() != null) {
+                android.util.Log.d(TAG, "✅ Reacción en comentario agregada exitosamente")
+                Result.success(response.body()!!)
+            } else {
+                val errorMsg = parseErrorMessage(response)
+                android.util.Log.e(TAG, "❌ Error al agregar reacción: $errorMsg")
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "❌ Exception: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Quitar reacción de un comentario
+     * @param idComentario ID del comentario
+     * @param idUsuario ID del usuario
+     * @param token Token de autorización
+     * @return Result<Boolean>
+     */
+    suspend fun quitarReaccionComentario(
+        idComentario: String,
+        idUsuario: String,
+        token: String
+    ): Result<Boolean> {
+        return try {
+            android.util.Log.d(TAG, "=== quitarReaccionComentario ===")
+            android.util.Log.d(TAG, "ID Comentario: $idComentario")
+            android.util.Log.d(TAG, "ID Usuario: $idUsuario")
+
+            val response = apiService.eliminarReaccionComentario(
+                idComentario = idComentario,
+                idUsuario = idUsuario,
+                authorization = "Bearer $token"
+            )
+
+            android.util.Log.d(TAG, "Response code: ${response.code()}")
+
+            if (response.isSuccessful) {
+                android.util.Log.d(TAG, "✅ Reacción removida exitosamente")
+                Result.success(true)
+            } else {
+                val errorMsg = parseErrorMessage(response)
+                android.util.Log.e(TAG, "❌ Error al quitar reacción: $errorMsg")
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "❌ Exception: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Obtener conteo de reacciones de un comentario
+     * @param idComentario ID del comentario
+     * @param token Token de autorización
+     * @return Result<ConteoReaccionesComentarioResponse>
+     */
+    suspend fun obtenerConteoReaccionesComentario(
+        idComentario: String,
+        token: String
+    ): Result<ConteoReaccionesComentarioResponse> {
+        return try {
+            android.util.Log.d(TAG, "=== obtenerConteoReaccionesComentario ===")
+            android.util.Log.d(TAG, "ID Comentario: $idComentario")
+
+            val response = apiService.obtenerConteoReaccionesComentario(
+                idComentario = idComentario,
+                authorization = "Bearer $token"
+            )
+
+            android.util.Log.d(TAG, "Response code: ${response.code()}")
+
+            if (response.isSuccessful && response.body() != null) {
+                val conteo = response.body()!!
+                android.util.Log.d(TAG, "✅ Conteo obtenido - Likes: ${conteo.likes}, Dislikes: ${conteo.dislikes}")
+                Result.success(conteo)
+            } else {
+                val errorMsg = parseErrorMessage(response)
+                android.util.Log.e(TAG, "❌ Error al obtener conteo: $errorMsg")
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "❌ Exception: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    // ============================================
+    // MÉTODOS DE TOGGLE PARA REACCIONES EN COMENTARIOS
+    // ============================================
+
+    /**
+     * Toggle like en comentario (similar al patrón de PublicacionRepository)
+     * @param idComentario ID del comentario
+     * @param idUsuario ID del usuario
+     * @param token Token de autorización
+     * @return Result<EstadoReaccionComentario> - Estado final después del toggle
+     */
+    suspend fun toggleLikeComentario(
+        idComentario: String,
+        idUsuario: String,
+        token: String
+    ): Result<EstadoReaccionComentario> {
+        return try {
+            android.util.Log.d(TAG, "=== toggleLikeComentario ===")
+
+            // Primero obtener conteo actual para determinar estado
+            val conteoResult = obtenerConteoReaccionesComentario(idComentario, token)
+
+            conteoResult.fold(
+                onSuccess = { conteo ->
+                    // Intentar agregar like
+                    val reaccionResult = agregarReaccionComentario(idComentario, idUsuario, "like", token)
+
+                    reaccionResult.fold(
+                        onSuccess = { reaccion ->
+                            android.util.Log.d(TAG, "Toggle like completado: ${reaccion.tipoReaccion}")
+
+                            val tieneReaccion = true
+                            val tipoReaccion = reaccion.tipoReaccion
+                            val esLike = tipoReaccion == "like"
+                            val esDislike = tipoReaccion == "dislike"
+
+                            Result.success(EstadoReaccionComentario(
+                                tieneReaccion = tieneReaccion,
+                                tipoReaccion = tipoReaccion,
+                                esLike = esLike,
+                                esDislike = esDislike
+                            ))
+                        },
+                        onFailure = { error ->
+                            android.util.Log.e(TAG, "Error en toggle like: ${error.message}")
+                            Result.failure(error)
+                        }
+                    )
+                },
+                onFailure = { error ->
+                    android.util.Log.e(TAG, "Error al obtener conteo para toggle: ${error.message}")
+                    Result.failure(error)
+                }
+            )
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "❌ Exception en toggleLikeComentario: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Toggle dislike en comentario
+     * @param idComentario ID del comentario
+     * @param idUsuario ID del usuario
+     * @param token Token de autorización
+     * @return Result<EstadoReaccionComentario>
+     */
+    suspend fun toggleDislikeComentario(
+        idComentario: String,
+        idUsuario: String,
+        token: String
+    ): Result<EstadoReaccionComentario> {
+        return try {
+            android.util.Log.d(TAG, "=== toggleDislikeComentario ===")
+
+            val conteoResult = obtenerConteoReaccionesComentario(idComentario, token)
+
+            conteoResult.fold(
+                onSuccess = { conteo ->
+                    val reaccionResult = agregarReaccionComentario(idComentario, idUsuario, "dislike", token)
+
+                    reaccionResult.fold(
+                        onSuccess = { reaccion ->
+                            android.util.Log.d(TAG, "Toggle dislike completado: ${reaccion.tipoReaccion}")
+
+                            val tieneReaccion = true
+                            val tipoReaccion = reaccion.tipoReaccion
+                            val esLike = tipoReaccion == "like"
+                            val esDislike = tipoReaccion == "dislike"
+
+                            Result.success(EstadoReaccionComentario(
+                                tieneReaccion = tieneReaccion,
+                                tipoReaccion = tipoReaccion,
+                                esLike = esLike,
+                                esDislike = esDislike
+                            ))
+                        },
+                        onFailure = { error ->
+                            Result.failure(error)
+                        }
+                    )
+                },
+                onFailure = { error ->
+                    Result.failure(error)
+                }
+            )
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "❌ Exception en toggleDislikeComentario: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    // ============================================
     // HELPER METHODS
     // ============================================
 
@@ -488,4 +720,18 @@ class ComentarioRepository(
             "Hace poco"
         }
     }
+
+    // ============================================
+    // CLASES DE DATOS PARA REACCIONES
+    // ============================================
+
+    /**
+     * Clase de datos para representar el estado de reacción de un comentario
+     */
+    data class EstadoReaccionComentario(
+        val tieneReaccion: Boolean,
+        val tipoReaccion: String?, // "like", "dislike" o null
+        val esLike: Boolean = tipoReaccion == "like",
+        val esDislike: Boolean = tipoReaccion == "dislike"
+    )
 }

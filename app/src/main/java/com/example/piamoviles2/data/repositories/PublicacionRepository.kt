@@ -1,5 +1,3 @@
-// Ubicación: app/src/main/java/com/example/piamoviles2/data/repositories/PublicacionRepository.kt
-
 package com.example.piamoviles2.data.repositories
 
 import com.example.piamoviles2.data.api.ApiService

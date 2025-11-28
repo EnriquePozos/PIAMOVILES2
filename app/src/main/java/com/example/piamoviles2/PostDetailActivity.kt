@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.piamoviles2.databinding.ActivityPostDetailBinding
 import com.example.piamoviles2.data.repositories.PublicacionRepository
 import com.example.piamoviles2.data.repositories.ComentarioRepository
+import com.example.piamoviles2.data.repositories.FavoritoRepository
 import com.example.piamoviles2.data.models.PublicacionDetalle
 import com.example.piamoviles2.data.models.VerificarReaccionResponse
 import com.example.piamoviles2.data.models.ConteoReaccionesResponse
@@ -28,6 +29,7 @@ class PostDetailActivity : AppCompatActivity() {
 
     private lateinit var publicacionRepository: PublicacionRepository
     private lateinit var comentarioRepository: ComentarioRepository
+    private lateinit var favoritoRepository: FavoritoRepository
     private lateinit var sessionManager: SessionManager
     private var isLoading = false
 
@@ -40,13 +42,16 @@ class PostDetailActivity : AppCompatActivity() {
     private var isLoadingComments = false
     private var isCreatingComment = false
 
+    // Variables para favoritos reales
+    private var isLoadingFavorite = false
+
     enum class LikeState {
         NONE, LIKED, DISLIKED
     }
 
     companion object {
-        const val EXTRA_POST_ID = "extra_post_id"
-        const val EXTRA_POST_API_ID = "extra_post_id"
+        const val EXTRA_POST_ID = "extra_post_id"        // Para compatibilidad
+        const val EXTRA_POST_API_ID = "extra_post_id"    // Para API real
         private const val TAG = "POST_DETAIL_DEBUG"
     }
 
@@ -58,6 +63,7 @@ class PostDetailActivity : AppCompatActivity() {
 
         publicacionRepository = PublicacionRepository()
         comentarioRepository = ComentarioRepository()
+        favoritoRepository = FavoritoRepository()
         sessionManager = SessionManager(this)
 
         setupHeader()
@@ -76,8 +82,8 @@ class PostDetailActivity : AppCompatActivity() {
             comments = comments,
             onCommentLike = { comment -> handleCommentLike(comment) },
             onCommentDislike = { comment -> handleCommentDislike(comment) },
-            onReplyLike = { reply -> handleReplyLike(reply) },
-            onReplyDislike = { reply -> handleReplyDislike(reply) },
+            onReplyLike = { _ -> }, // Sin funcionalidad - solo comentarios padre tienen likes
+            onReplyDislike = { _ -> }, // Sin funcionalidad - solo comentarios padre tienen likes
             onReplySubmit = { comment, replyText -> handleReplySubmitReal(comment, replyText) }
         )
 
@@ -128,23 +134,116 @@ class PostDetailActivity : AppCompatActivity() {
             performDislikeAction(apiId, currentUser.id, token)
         }
 
-        // Botón Favoritos (mantener lógica existente)
+        // Botón Favoritos con API real
         binding.btnFavorite.setOnClickListener {
-            currentPost?.let { post ->
-                post.isFavorite = !post.isFavorite
-                updateFavoriteButton()
-                val message = if (post.isFavorite) {
-                    "Agregado a favoritos"
-                } else {
-                    "Removido de favoritos"
-                }
-                Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+            if (isLoadingFavorite) {
+                android.util.Log.d(TAG, "Ya hay una operación de favorito en curso, ignorando click")
+                return@setOnClickListener
             }
+
+            val currentUser = sessionManager.getCurrentUser()
+            val token = sessionManager.getAccessToken()
+            val apiId = currentPost?.apiId
+
+            if (currentUser == null || token == null || apiId == null) {
+                Toast.makeText(this, "Error: Sesión no válida", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            android.util.Log.d(TAG, "Click en FAVORITO - Estado actual: ${currentPost?.isFavorite}")
+            performFavoriteAction(apiId, currentUser.id, token)
         }
 
         // Campo para agregar comentario nuevo con API real
         binding.btnSendComment.setOnClickListener {
             handleCreateCommentReal()
+        }
+    }
+
+    // ============================================
+    // MÉTODOS PARA LLAMADAS API REALES - FAVORITOS
+    // ============================================
+
+    private fun performFavoriteAction(apiId: String, userId: String, token: String) {
+        isLoadingFavorite = true
+        updateFavoriteButtonLoading(true)
+
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                android.util.Log.d(TAG, "=== performFavoriteAction ===")
+
+                val result = withContext(Dispatchers.IO) {
+                    favoritoRepository.toggleFavorito(userId, apiId, token)
+                }
+
+                result.fold(
+                    onSuccess = { estadoFavorito ->
+                        android.util.Log.d(TAG, "Toggle favorito exitoso")
+                        android.util.Log.d(TAG, "Estado final: esFavorito=${estadoFavorito.esFavorito}, acción=${estadoFavorito.accion}")
+
+                        // Actualizar estado local
+                        currentPost?.isFavorite = estadoFavorito.esFavorito
+                        updateFavoriteButton()
+
+                        val message = if (estadoFavorito.esFavorito) {
+                            "Agregado a favoritos"
+                        } else {
+                            "Removido de favoritos"
+                        }
+                        Toast.makeText(this@PostDetailActivity, message, Toast.LENGTH_SHORT).show()
+                    },
+                    onFailure = { error ->
+                        android.util.Log.e(TAG, "Error en toggle favorito: ${error.message}")
+                        Toast.makeText(this@PostDetailActivity, "Error al procesar favorito", Toast.LENGTH_SHORT).show()
+                    }
+                )
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "Exception en performFavoriteAction: ${e.message}")
+                Toast.makeText(this@PostDetailActivity, "Error inesperado", Toast.LENGTH_SHORT).show()
+            } finally {
+                isLoadingFavorite = false
+                updateFavoriteButtonLoading(false)
+            }
+        }
+    }
+
+    private fun loadInitialFavoriteState(apiId: String, userId: String, token: String) {
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                android.util.Log.d(TAG, "=== loadInitialFavoriteState ===")
+
+                val result = withContext(Dispatchers.IO) {
+                    favoritoRepository.verificarSiFavorito(userId, apiId, token)
+                }
+
+                result.fold(
+                    onSuccess = { esFavorito ->
+                        android.util.Log.d(TAG, "Estado inicial de favorito cargado: $esFavorito")
+                        currentPost?.isFavorite = esFavorito
+                        updateFavoriteButton()
+                    },
+                    onFailure = { error ->
+                        android.util.Log.e(TAG, "Error al cargar estado inicial de favorito: ${error.message}")
+                        currentPost?.isFavorite = false
+                        updateFavoriteButton()
+                    }
+                )
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "Exception en loadInitialFavoriteState: ${e.message}")
+                currentPost?.isFavorite = false
+                updateFavoriteButton()
+            }
+        }
+    }
+
+    private fun updateFavoriteButtonLoading(loading: Boolean) {
+        binding.btnFavorite.isEnabled = !loading
+
+        if (loading) {
+            binding.btnFavorite.alpha = 0.5f
+        } else {
+            binding.btnFavorite.alpha = 1.0f
+            updateFavoriteButton()
         }
     }
 
@@ -379,15 +478,11 @@ class PostDetailActivity : AppCompatActivity() {
                     onFailure = { error ->
                         android.util.Log.e(TAG, "Error al cargar comentarios reales: ${error.message}")
                         Toast.makeText(this@PostDetailActivity, "Error al cargar comentarios", Toast.LENGTH_SHORT).show()
-
-                        // Fallback a datos mock si falla la API
-                        loadCommentsMock()
                     }
                 )
             } catch (e: Exception) {
                 android.util.Log.e(TAG, "Exception en loadCommentsReal: ${e.message}")
                 Toast.makeText(this@PostDetailActivity, "Error inesperado al cargar comentarios", Toast.LENGTH_SHORT).show()
-                loadCommentsMock()
             } finally {
                 isLoadingComments = false
             }
@@ -489,7 +584,7 @@ class PostDetailActivity : AppCompatActivity() {
         val comentarioApiId = findApiIdFromComment(parentComment)
         if (comentarioApiId == null) {
             android.util.Log.w(TAG, "No se pudo encontrar API ID para el comentario")
-            handleReplySubmitMock(parentComment, replyText) // Fallback
+            Toast.makeText(this, "Error: No se puede responder al comentario", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -519,15 +614,11 @@ class PostDetailActivity : AppCompatActivity() {
                     onFailure = { error ->
                         android.util.Log.e(TAG, "Error al crear respuesta: ${error.message}")
                         Toast.makeText(this@PostDetailActivity, "Error al crear respuesta", Toast.LENGTH_SHORT).show()
-
-                        // Fallback a lógica mock
-                        handleReplySubmitMock(parentComment, replyText)
                     }
                 )
             } catch (e: Exception) {
                 android.util.Log.e(TAG, "Exception en handleReplySubmitReal: ${e.message}")
                 Toast.makeText(this@PostDetailActivity, "Error inesperado", Toast.LENGTH_SHORT).show()
-                handleReplySubmitMock(parentComment, replyText)
             }
         }
     }
@@ -577,28 +668,16 @@ class PostDetailActivity : AppCompatActivity() {
     }
 
     private fun loadPostData() {
-        val postId = intent.getIntExtra(EXTRA_POST_ID, -1)
         val apiId = intent.getStringExtra(EXTRA_POST_API_ID)
 
         android.util.Log.d(TAG, "=== loadPostData ===")
-        android.util.Log.d(TAG, "Post ID local: $postId")
         android.util.Log.d(TAG, "Post API ID: $apiId")
 
         if (!apiId.isNullOrEmpty()) {
             android.util.Log.d(TAG, "Cargando desde API con ID: $apiId")
             loadPostFromApi(apiId)
-        } else if (postId != -1) {
-            android.util.Log.d(TAG, "Usando datos de ejemplo para ID: $postId")
-            val samplePost = Post.getSamplePosts().find { it.id == postId }
-            if (samplePost != null) {
-                currentPost = samplePost
-                displayPostData(samplePost)
-                loadCommentsMock() // Para datos de ejemplo, usar comentarios mock
-            } else {
-                showError("Publicación no encontrada")
-            }
         } else {
-            showError("Error al cargar publicación")
+            showError("Error: Se requiere ID de publicación válido")
         }
     }
 
@@ -627,10 +706,11 @@ class PostDetailActivity : AppCompatActivity() {
                         currentPost = convertirDetalleAPost(publicacion, currentUser?.id ?: "")
                         displayPostData(currentPost!!)
 
-                        // Cargar estado de reacciones
+                        // Cargar estado de reacciones y favoritos
                         if (currentUser != null) {
                             loadInitialReactionState(apiId, currentUser.id, token)
                             loadReactionCounts(apiId, token)
+                            loadInitialFavoriteState(apiId, currentUser.id, token)
                         }
 
                         // Cargar comentarios reales
@@ -774,76 +854,103 @@ class PostDetailActivity : AppCompatActivity() {
         commentAdapter.notifyDataSetChanged()
     }
 
-    // Manejo de likes en comentarios principales (sin cambios)
+    // Manejo de likes en comentarios principales con API real
     private fun handleCommentLike(comment: Comment) {
-        when (comment.userLikeState) {
-            Comment.LikeState.NONE -> {
-                comment.userLikeState = Comment.LikeState.LIKED
-                Toast.makeText(this, "Te gusta este comentario", Toast.LENGTH_SHORT).show()
-            }
-            Comment.LikeState.LIKED -> {
-                comment.userLikeState = Comment.LikeState.NONE
-                Toast.makeText(this, "Like removido", Toast.LENGTH_SHORT).show()
-            }
-            Comment.LikeState.DISLIKED -> {
-                comment.userLikeState = Comment.LikeState.LIKED
-                Toast.makeText(this, "Te gusta este comentario", Toast.LENGTH_SHORT).show()
+        val currentUser = sessionManager.getCurrentUser()
+        val token = sessionManager.getAccessToken()
+        val commentApiId = comment.apiId
+
+        if (currentUser == null || token == null || commentApiId == null) {
+            Toast.makeText(this, "Error: Sesión no válida", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        android.util.Log.d(TAG, "=== handleCommentLike ===")
+        android.util.Log.d(TAG, "Comentario API ID: $commentApiId")
+
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    comentarioRepository.toggleLikeComentario(commentApiId, currentUser.id, token)
+                }
+
+                result.fold(
+                    onSuccess = { estadoReaccion ->
+                        android.util.Log.d(TAG, "Toggle like comentario exitoso: ${estadoReaccion.tipoReaccion}")
+
+                        comment.userLikeState = when {
+                            estadoReaccion.esLike -> Comment.LikeState.LIKED
+                            estadoReaccion.esDislike -> Comment.LikeState.DISLIKED
+                            else -> Comment.LikeState.NONE
+                        }
+
+                        val message = when {
+                            estadoReaccion.esLike -> "Te gusta este comentario"
+                            estadoReaccion.tieneReaccion -> "Te gusta este comentario"
+                            else -> "Like removido"
+                        }
+                        Toast.makeText(this@PostDetailActivity, message, Toast.LENGTH_SHORT).show()
+                        commentAdapter.notifyDataSetChanged()
+                    },
+                    onFailure = { error ->
+                        android.util.Log.e(TAG, "Error en like comentario: ${error.message}")
+                        Toast.makeText(this@PostDetailActivity, "Error al procesar like", Toast.LENGTH_SHORT).show()
+                    }
+                )
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "Exception en handleCommentLike: ${e.message}")
+                Toast.makeText(this@PostDetailActivity, "Error inesperado", Toast.LENGTH_SHORT).show()
             }
         }
-        commentAdapter.notifyDataSetChanged()
     }
 
     private fun handleCommentDislike(comment: Comment) {
-        when (comment.userLikeState) {
-            Comment.LikeState.NONE -> {
-                comment.userLikeState = Comment.LikeState.DISLIKED
-                Toast.makeText(this, "No te gusta este comentario", Toast.LENGTH_SHORT).show()
-            }
-            Comment.LikeState.DISLIKED -> {
-                comment.userLikeState = Comment.LikeState.NONE
-                Toast.makeText(this, "Dislike removido", Toast.LENGTH_SHORT).show()
-            }
-            Comment.LikeState.LIKED -> {
-                comment.userLikeState = Comment.LikeState.DISLIKED
-                Toast.makeText(this, "No te gusta este comentario", Toast.LENGTH_SHORT).show()
+        val currentUser = sessionManager.getCurrentUser()
+        val token = sessionManager.getAccessToken()
+        val commentApiId = comment.apiId
+
+        if (currentUser == null || token == null || commentApiId == null) {
+            Toast.makeText(this, "Error: Sesión no válida", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        android.util.Log.d(TAG, "=== handleCommentDislike ===")
+        android.util.Log.d(TAG, "Comentario API ID: $commentApiId")
+
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    comentarioRepository.toggleDislikeComentario(commentApiId, currentUser.id, token)
+                }
+
+                result.fold(
+                    onSuccess = { estadoReaccion ->
+                        android.util.Log.d(TAG, "Toggle dislike comentario exitoso: ${estadoReaccion.tipoReaccion}")
+
+                        comment.userLikeState = when {
+                            estadoReaccion.esLike -> Comment.LikeState.LIKED
+                            estadoReaccion.esDislike -> Comment.LikeState.DISLIKED
+                            else -> Comment.LikeState.NONE
+                        }
+
+                        val message = when {
+                            estadoReaccion.esDislike -> "No te gusta este comentario"
+                            estadoReaccion.tieneReaccion -> "No te gusta este comentario"
+                            else -> "Dislike removido"
+                        }
+                        Toast.makeText(this@PostDetailActivity, message, Toast.LENGTH_SHORT).show()
+                        commentAdapter.notifyDataSetChanged()
+                    },
+                    onFailure = { error ->
+                        android.util.Log.e(TAG, "Error en dislike comentario: ${error.message}")
+                        Toast.makeText(this@PostDetailActivity, "Error al procesar dislike", Toast.LENGTH_SHORT).show()
+                    }
+                )
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "Exception en handleCommentDislike: ${e.message}")
+                Toast.makeText(this@PostDetailActivity, "Error inesperado", Toast.LENGTH_SHORT).show()
             }
         }
-        commentAdapter.notifyDataSetChanged()
     }
 
-    private fun handleReplyLike(reply: Comment.Reply) {
-        when (reply.userLikeState) {
-            Comment.LikeState.NONE -> {
-                reply.userLikeState = Comment.LikeState.LIKED
-                Toast.makeText(this, "Te gusta esta respuesta", Toast.LENGTH_SHORT).show()
-            }
-            Comment.LikeState.LIKED -> {
-                reply.userLikeState = Comment.LikeState.NONE
-                Toast.makeText(this, "Like removido", Toast.LENGTH_SHORT).show()
-            }
-            Comment.LikeState.DISLIKED -> {
-                reply.userLikeState = Comment.LikeState.LIKED
-                Toast.makeText(this, "Te gusta esta respuesta", Toast.LENGTH_SHORT).show()
-            }
-        }
-        commentAdapter.notifyDataSetChanged()
-    }
-
-    private fun handleReplyDislike(reply: Comment.Reply) {
-        when (reply.userLikeState) {
-            Comment.LikeState.NONE -> {
-                reply.userLikeState = Comment.LikeState.DISLIKED
-                Toast.makeText(this, "No te gusta esta respuesta", Toast.LENGTH_SHORT).show()
-            }
-            Comment.LikeState.DISLIKED -> {
-                reply.userLikeState = Comment.LikeState.NONE
-                Toast.makeText(this, "Dislike removido", Toast.LENGTH_SHORT).show()
-            }
-            Comment.LikeState.LIKED -> {
-                reply.userLikeState = Comment.LikeState.DISLIKED
-                Toast.makeText(this, "No te gusta esta respuesta", Toast.LENGTH_SHORT).show()
-            }
-        }
-        commentAdapter.notifyDataSetChanged()
-    }
 }

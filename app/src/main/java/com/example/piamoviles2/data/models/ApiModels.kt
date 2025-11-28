@@ -280,12 +280,19 @@ enum class TipoReaccion(val value: String) {
 
 // Respuesta al crear/actualizar reacción
 data class ReaccionResponse(
-    val id: String,
-    val reaccion: String, // "like" o "dislike"
     @SerializedName("id_usuario") val idUsuario: String,
     @SerializedName("id_publicacion") val idPublicacion: String?,
-    @SerializedName("id_comentario") val idComentario: String?
-)
+    @SerializedName("id_comentario") val idComentario: String?,
+    @SerializedName("tipo_reaccion") val tipoReaccion: String,  // "like" o "dislike"
+    @SerializedName("publicacion_titulo") val publicacionTitulo: String?
+) {
+    // Helpers para facilitar el uso
+    fun esLike(): Boolean = tipoReaccion == "like"
+    fun esDislike(): Boolean = tipoReaccion == "dislike"
+
+    // Compatible con TipoReaccion enum existente
+    fun getTipoReaccionEnum(): TipoReaccion? = TipoReaccion.fromString(tipoReaccion)
+}
 
 // Respuesta de conteo de reacciones de una publicación
 data class ConteoReaccionesResponse(
@@ -320,7 +327,7 @@ data class ReaccionDeletedResponse(
 )
 
 // ============================================
-// 🆕 COMENTARIOS API MODELS
+// COMENTARIOS API MODELS
 // ============================================
 
 // Enum para estatus de comentarios (coincide con el backend)
@@ -337,13 +344,13 @@ enum class EstatusComentario(val value: String) {
 }
 
 // ============================================
-// REQUEST MODELS PARA COMENTARIOS  
+// REQUEST MODELS PARA COMENTARIOS
 // ============================================
 
 // Crear comentario en publicación (usando Query params como tu backend)
 // POST /api/comentario/publicacion/{id_publicacion}?comentario=xxx&id_usuario=xxx
 
-// Crear respuesta a comentario 
+// Crear respuesta a comentario
 // POST /api/comentario/respuesta/{id_comentario_padre}?comentario=xxx&id_usuario=xxx
 
 // Request body para el método POST genérico
@@ -381,7 +388,7 @@ data class ComentarioUpdateRequest(
 data class ComentarioResponse(
     val id: String,
     val comentario: String,
-    val estatus: String, // "activo", "eliminado", "oculto" 
+    val estatus: String, // "activo", "eliminado", "oculto"
     @SerializedName("fecha_creacion") val fechaCreacion: String,
     @SerializedName("id_usuario") val idUsuario: String,
     @SerializedName("id_publicacion") val idPublicacion: String?, // null si es respuesta
@@ -391,7 +398,7 @@ data class ComentarioResponse(
     @SerializedName("usuario_alias") val usuarioAlias: String?,
     @SerializedName("usuario_foto") val usuarioFoto: String?,
 
-    // Indicadores y estadísticas  
+    // Indicadores y estadísticas
     @SerializedName("es_respuesta") val esRespuesta: Boolean = false,
     @SerializedName("total_respuestas") val totalRespuestas: Int = 0,
     @SerializedName("total_reacciones") val totalReacciones: Int = 0
@@ -450,6 +457,83 @@ data class ComentarioUpdatedResponse(
 data class ComentarioDeletedResponse(
     val message: String
 )
+
+// ============================================
+// FAVORITOS API MODELS
+// ============================================
+
+// Request para crear favorito (simple, solo necesita el id_publicacion)
+data class FavoritoCreateRequest(
+    @SerializedName("id_publicacion") val idPublicacion: String
+)
+
+// ============================================
+// RESPONSE MODELS PARA FAVORITOS
+// ============================================
+
+// Respuesta al agregar/verificar favorito
+data class FavoritoResponse(
+    @SerializedName("id_usuario") val idUsuario: String,
+    @SerializedName("id_publicacion") val idPublicacion: String,
+    @SerializedName("fecha_guardado") val fechaGuardado: String,
+    @SerializedName("publicacion_titulo") val publicacionTitulo: String?
+) {
+    // Helper para mostrar fecha formateada
+    fun getFechaFormateada(): String {
+        return try {
+            if (fechaGuardado.contains("T")) {
+                val partes = fechaGuardado.split("T")
+                val fecha = partes[0] // "2025-11-23"
+                val fechaParts = fecha.split("-")
+                if (fechaParts.size == 3) {
+                    "${fechaParts[2]}/${fechaParts[1]}/${fechaParts[0]}"
+                } else {
+                    "Fecha inválida"
+                }
+            } else {
+                fechaGuardado
+            }
+        } catch (e: Exception) {
+            "Fecha inválida"
+        }
+    }
+}
+
+// ============================================
+// SUCCESS RESPONSE MODELS PARA FAVORITOS
+// ============================================
+
+data class FavoritoCreatedResponse(
+    val message: String,
+    val favorito: FavoritoResponse
+)
+
+data class FavoritoDeletedResponse(
+    val message: String
+)
+
+// ============================================
+// RESPONSE MODELS PARA REACCIONES EN COMENTARIOS
+// ============================================
+
+// Respuesta de conteo de reacciones de un comentario (similar a publicaciones)
+data class ConteoReaccionesComentarioResponse(
+    @SerializedName("id_comentario") val idComentario: String,
+    val likes: Int,
+    val dislikes: Int,
+    val total: Int
+)
+
+// Respuesta para verificar reacción de usuario en comentario
+data class VerificarReaccionComentarioResponse(
+    @SerializedName("tiene_reaccion") val tieneReaccion: Boolean,
+    @SerializedName("tipo_reaccion") val tipoReaccion: String? // "like", "dislike" o null
+) {
+    // Helpers para facilitar el uso (reutilizan la misma lógica)
+    fun esLike(): Boolean = tipoReaccion == "like"
+    fun esDislike(): Boolean = tipoReaccion == "dislike"
+    fun getTipoReaccionEnum(): TipoReaccion? = tipoReaccion?.let { TipoReaccion.fromString(it) }
+}
 
 // ============================================
 // MODELS PARA COMPATIBILIDAD CON Comment.kt EXISTENTE
