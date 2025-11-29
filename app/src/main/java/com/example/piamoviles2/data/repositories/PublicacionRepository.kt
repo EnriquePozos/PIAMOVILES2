@@ -366,6 +366,59 @@ class PublicacionRepository(
         }
     }
 
+    // ============================================
+    // OBTENER FAVORITOS DEL USUARIO CONVERTIDOS A POST
+    // ============================================
+    suspend fun obtenerFavoritosUsuarioConvertidos(
+        idUsuario: String,
+        token: String
+    ): Result<List<Post>> {
+        return try {
+            android.util.Log.d("PUBLICACION_REPO_DEBUG", "=== obtenerFavoritosUsuarioConvertidos ===")
+            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Usuario ID: $idUsuario")
+
+            val authHeader = "Bearer $token"
+            val response = apiService.obtenerFavoritasUsuario(idUsuario, authHeader)
+
+            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Response code: ${response.code()}")
+
+            if (response.isSuccessful) {
+                response.body()?.let { favoritasList ->
+                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "  Favoritos obtenidos: ${favoritasList.size} publicaciones")
+
+                    // Convertir PublicacionListFeed a Post
+                    val posts = favoritasList.mapIndexed { index, publicacion ->
+                        Post(
+                            id = (publicacion.id.hashCode().takeIf { it > 0 } ?: (3000 + index)), // ID local único para favoritos
+                            apiId = publicacion.id,
+                            title = publicacion.titulo,
+                            description = publicacion.descripcion ?: "",
+                            imageUrl = publicacion.imagenPreview ?: "default_recipe",
+                            author = "@${publicacion.autorAlias ?: "Anónimo"}",
+                            createdAt = formatearFecha(publicacion.fechaPublicacion),
+                            isOwner = false, // Los favoritos generalmente no son del mismo usuario
+                            isFavorite = true, // Por definición, todos son favoritos
+                            isDraft = false, // Los favoritos nunca son borradores
+                            likesCount = publicacion.totalReacciones,
+                            commentsCount = publicacion.totalComentarios
+                        )
+                    }
+
+                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "  Posts convertidos: ${posts.size}")
+                    Result.success(posts)
+
+                } ?: Result.failure(Exception("Respuesta vacía del servidor"))
+            } else {
+                val errorMsg = parseErrorMessage(response)
+                android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Error: $errorMsg")
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Exception: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
     // MÉTODOS DE REACCIONES (LIKES/DISLIKES)
 
     /**
