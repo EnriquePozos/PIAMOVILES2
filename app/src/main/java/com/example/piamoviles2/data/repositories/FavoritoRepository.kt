@@ -41,12 +41,14 @@ class FavoritoRepository(
             Log.d(TAG, "=== agregarFavorito ===")
             Log.d(TAG, "Usuario: $idUsuario")
             Log.d(TAG, "Publicación: $idPublicacion")
+            Log.d(TAG, "URL completa: /api/favoritos/add_favorito/$idUsuario/$idPublicacion")
 
             val authHeader = "Bearer $token"
             val response = apiService.agregarFavorito(
                 idUsuario = idUsuario,
                 idPublicacion = idPublicacion,
                 authorization = authHeader
+
             )
 
             if (response.isSuccessful && response.body() != null) {
@@ -172,9 +174,15 @@ class FavoritoRepository(
 
                 Result.success(esFavorita)
             } else {
-                val errorMsg = parseErrorMessage(response.errorBody()?.string())
-                Log.e(TAG, "Error HTTP ${response.code()}: $errorMsg")
-                Result.failure(Exception("Error al verificar favorito: $errorMsg"))
+                // Manejar 404 como "no tiene favoritos"
+                if (response.code() == 404) {
+                    Log.d(TAG, "Usuario no tiene favoritos (404 en response) - interpretando como false")
+                    Result.success(false)
+                } else {
+                    val errorMsg = parseErrorMessage(response.errorBody()?.string())
+                    Log.e(TAG, "Error HTTP ${response.code()}: $errorMsg")
+                    Result.failure(Exception("Error al verificar favorito: $errorMsg"))
+                }
             }
         } catch (e: HttpException) {
             if (e.code() == 404) {
