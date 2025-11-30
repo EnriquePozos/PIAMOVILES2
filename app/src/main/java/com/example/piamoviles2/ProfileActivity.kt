@@ -5,6 +5,8 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.ui.semantics.text
+//import androidx.glance.visibility
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.piamoviles2.databinding.ActivityProfileBinding
 import com.example.piamoviles2.utils.SessionManager
@@ -191,8 +193,9 @@ class ProfileActivity : AppCompatActivity() {
             else -> {
                 // Error genérico - usar datos de ejemplo como fallback
                 android.util.Log.w("PROFILE_DEBUG", "Error en API, usando datos de ejemplo")
-                loadSamplePostsAsFallback()
-                Toast.makeText(this, "Error al cargar publicaciones reales, mostrando ejemplos", Toast.LENGTH_LONG).show()
+                userPosts.clear()
+                updateUI()
+                //Toast.makeText(this, "Error al cargar publicaciones reales, mostrando ejemplos", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -212,6 +215,7 @@ class ProfileActivity : AppCompatActivity() {
 
         if (userPosts.isEmpty()) {
             binding.rvUserPosts.visibility = View.GONE
+            binding.layoutEmptyPosts.visibility = View.VISIBLE
             android.util.Log.d("PROFILE_DEBUG", "Mostrando estado vacío")
         } else {
             binding.rvUserPosts.visibility = View.VISIBLE
