@@ -441,8 +441,9 @@ class PostDetailActivity : AppCompatActivity() {
     private fun loadCommentsReal() {
         val apiId = currentPost?.apiId
         val token = sessionManager.getAccessToken()
+        val currentUser = sessionManager.getCurrentUser()
 
-        if (apiId == null || token == null) {
+        if (apiId == null || token == null || currentUser == null) {
             android.util.Log.w(TAG, "No se puede cargar comentarios: apiId=$apiId, token presente=${token != null}")
             loadCommentsMock() // Fallback a datos mock
             return
@@ -460,7 +461,7 @@ class PostDetailActivity : AppCompatActivity() {
         CoroutineScope(Dispatchers.Main).launch {
             try {
                 val result = withContext(Dispatchers.IO) {
-                    comentarioRepository.obtenerComentariosConvertidos(apiId, token)
+                    comentarioRepository.obtenerComentariosConvertidos(apiId, currentUser.id, token)
                 }
 
                 result.fold(

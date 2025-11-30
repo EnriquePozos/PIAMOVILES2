@@ -258,7 +258,7 @@ interface ApiService {
     suspend fun obtenerComentariosDePublicacion(
         @Path("id_publicacion") idPublicacion: String,
         @Query("skip") skip: Int = 0,
-        @Query("limit") limit: Int = 20,
+        @Query("limit") limit: Int = 100,
         @Header("Authorization") authorization: String
     ): Response<List<ComentarioResponse>>
 
