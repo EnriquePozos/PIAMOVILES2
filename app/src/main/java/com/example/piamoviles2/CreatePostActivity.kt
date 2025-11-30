@@ -16,11 +16,6 @@ import com.example.piamoviles2.utils.SessionManager
 import kotlinx.coroutines.*
 import java.io.File
 import java.io.FileOutputStream
-import com.bumptech.glide.Glide
-import com.bumptech.glide.request.target.CustomTarget
-import com.bumptech.glide.request.transition.Transition
-import java.io.InputStream
-import java.net.URL
 
 class CreatePostActivity : AppCompatActivity() {
 
@@ -34,7 +29,6 @@ class CreatePostActivity : AppCompatActivity() {
     // Modo de edición
     private var isEditMode = false
     private var editingPostId = -1
-    private var editingDraftApiId: String? = null // API ID del borrador a editar
 
     // ============================================
     // VARIABLES PARA API INTEGRATION
@@ -47,7 +41,6 @@ class CreatePostActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_DRAFT_ID = "extra_draft_id"
         const val EXTRA_POST_ID = "extra_post_id"
-        const val EXTRA_DRAFT_API_ID = "extra_draft_api_id" // Para recibir API ID del borrador
         private const val MAX_IMAGES = 3
         private const val TAG = "CREATE_POST_DEBUG"
     }
@@ -64,15 +57,13 @@ class CreatePostActivity : AppCompatActivity() {
         setupImagePicker()
         setupClickListeners()
         setupBackPressedHandler()
+        checkEditMode()
 
         // ============================================
         //   NUEVAS FUNCIONALIDADES API
         // ============================================
         setupApiComponents()
         loadUserData()
-
-        //   Verificar modo de edición DESPUÉS de configurar API
-        checkEditMode()
 
         android.util.Log.d(TAG, "CreatePostActivity iniciada")
     }
@@ -189,23 +180,8 @@ class CreatePostActivity : AppCompatActivity() {
         }
     }
 
-    // ============================================
-    //   MÉTODO CHECKEEDITMODE MEJORADO
-    // ============================================
     private fun checkEditMode() {
-        // Verificar si estamos editando un borrador (prioridad al API ID)
-        editingDraftApiId = intent.getStringExtra(EXTRA_DRAFT_API_ID)
-
-        if (editingDraftApiId != null) {
-            // Editar borrador usando API ID
-            isEditMode = true
-            binding.tvScreenTitle.text = "Editar receta"
-            android.util.Log.d(TAG, "Modo edición: Borrador API ID = $editingDraftApiId")
-            loadDraftFromApi(editingDraftApiId!!)
-            return
-        }
-
-        // Verificar ID local (legacy)
+        // Verificar si estamos editando un borrador o post existente
         editingPostId = intent.getIntExtra(EXTRA_DRAFT_ID, -1)
         if (editingPostId == -1) {
             editingPostId = intent.getIntExtra(EXTRA_POST_ID, -1)
@@ -214,119 +190,12 @@ class CreatePostActivity : AppCompatActivity() {
         if (editingPostId != -1) {
             isEditMode = true
             binding.tvScreenTitle.text = "Editar receta"
-            android.util.Log.d(TAG, "Modo edición: Post local ID = $editingPostId")
             loadPostData(editingPostId)
-        } else {
-            // Modo creación
-            android.util.Log.d(TAG, "Modo creación: Nueva receta")
         }
-    }
-
-    // ============================================
-    //   CARGAR BORRADOR DESDE API
-    // ============================================
-    private fun loadDraftFromApi(apiId: String) {
-        val token = sessionManager.getAccessToken()
-
-        if (token == null) {
-            Toast.makeText(this, "Sesión no válida", Toast.LENGTH_SHORT).show()
-            finish()
-            return
-        }
-
-        android.util.Log.d(TAG, "=== Cargando borrador desde API ===")
-        android.util.Log.d(TAG, "API ID: $apiId")
-
-        setLoading(true)
-
-        CoroutineScope(Dispatchers.Main).launch {
-            try {
-                val result = withContext(Dispatchers.IO) {
-                    publicacionRepository.obtenerPublicacionPorId(apiId, token)
-                }
-
-                result.fold(
-                    onSuccess = { publicacion ->
-                        android.util.Log.d(TAG, "   Borrador cargado: ${publicacion.titulo}")
-
-                        // Cargar datos en la interfaz
-                        binding.etRecipeTitle.setText(publicacion.titulo)
-                        binding.etRecipeDescription.setText(publicacion.descripcion)
-
-                        // Cargar imágenes si existen
-                        publicacion.multimedia?.let { multimedia ->
-                            loadImagesFromUrls(multimedia.map { it.url })
-                        }
-
-                        // Actualizar botones para modo edición
-                        updateUIForEditMode()
-
-                    },
-                    onFailure = { error ->
-                        android.util.Log.e(TAG, "  Error al cargar borrador", error)
-                        Toast.makeText(this@CreatePostActivity, "Error al cargar borrador: ${error.message}", Toast.LENGTH_LONG).show()
-                        finish()
-                    }
-                )
-
-            } catch (e: Exception) {
-                android.util.Log.e(TAG, "  Exception al cargar borrador", e)
-                Toast.makeText(this@CreatePostActivity, "Error inesperado: ${e.message}", Toast.LENGTH_LONG).show()
-                finish()
-            } finally {
-                setLoading(false)
-            }
-        }
-    }
-
-    // ============================================
-    //   CARGAR IMÁGENES DESDE URLs
-    // ============================================
-    private fun loadImagesFromUrls(imageUrls: List<String>) {
-        android.util.Log.d(TAG, "=== Cargando ${imageUrls.size} imágenes desde URLs ===")
-
-        imageUrls.forEachIndexed { index, url ->
-            if (index < MAX_IMAGES) {
-                android.util.Log.d(TAG, "Cargando imagen $index: $url")
-
-                Glide.with(this)
-                    .asBitmap()
-                    .load(url)
-                    .into(object : CustomTarget<Bitmap>() {
-                        override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
-                            android.util.Log.d(TAG, "   Imagen $index cargada exitosamente")
-                            selectedImages[index] = resource
-                            updateImageUI(index, resource)
-
-                            // Convertir a archivo para futuras actualizaciones
-                            convertBitmapToFile(resource, index)
-                        }
-
-                        override fun onLoadCleared(placeholder: android.graphics.drawable.Drawable?) {
-                            // No hacer nada
-                        }
-
-                        override fun onLoadFailed(errorDrawable: android.graphics.drawable.Drawable?) {
-                            android.util.Log.e(TAG, "  Error al cargar imagen $index desde $url")
-                        }
-                    })
-            }
-        }
-    }
-
-    // ============================================
-    //   ACTUALIZAR UI PARA MODO EDICIÓN
-    // ============================================
-    private fun updateUIForEditMode() {
-        // Cambiar texto de botones para modo edición
-        binding.btnSaveDraft.text = "Actualizar borrador"
-        binding.btnPublish.text = "Publicar receta"
-
-        android.util.Log.d(TAG, "UI actualizada para modo edición")
     }
 
     private fun loadPostData(postId: Int) {
-        // Método legacy para compatibilidad
+        // Buscar el post/borrador por ID
         val post = Post.getSamplePosts().find { it.id == postId }
         post?.let {
             binding.etRecipeTitle.setText(it.title)
@@ -496,7 +365,7 @@ class CreatePostActivity : AppCompatActivity() {
     }
 
     // ============================================
-    //   MÉTODO SAVEEDRAFT MEJORADO (CREAR/ACTUALIZAR)
+    // MÉTODO SAVEEDRAFT CON API REAL
     // ============================================
     private fun saveDraft() {
         if (!validateForm() || isLoading) return
@@ -514,41 +383,24 @@ class CreatePostActivity : AppCompatActivity() {
 
         setLoading(true)
 
+        // Llamada a API con corrutinas
         CoroutineScope(Dispatchers.Main).launch {
             try {
-                val result = if (isEditMode && editingDraftApiId != null) {
-                    //   ACTUALIZAR borrador existente
-                    android.util.Log.d(TAG, "=== Actualizando borrador existente ===")
-                    withContext(Dispatchers.IO) {
-                        publicacionRepository.actualizarPublicacion(
-                            idPublicacion = editingDraftApiId!!,
-                            titulo = title,
-                            descripcion = description,
-                            estatus = "borrador",
-                            imagenes = selectedImageFiles.ifEmpty { null },
-                            token = token
-                        )
-                    }
-                } else {
-                    //   CREAR nuevo borrador
-                    android.util.Log.d(TAG, "=== Creando nuevo borrador ===")
-                    withContext(Dispatchers.IO) {
-                        publicacionRepository.crearPublicacion(
-                            titulo = title,
-                            descripcion = description,
-                            estatus = "borrador",
-                            idAutor = currentUser.id,
-                            imagenes = selectedImageFiles.ifEmpty { null },
-                            token = token
-                        )
-                    }
+                val result = withContext(Dispatchers.IO) {
+                    publicacionRepository.crearPublicacion(
+                        titulo = title,
+                        descripcion = description,
+                        estatus = "borrador",
+                        idAutor = currentUser.id,
+                        imagenes = selectedImageFiles.ifEmpty { null },
+                        token = token
+                    )
                 }
 
                 result.fold(
                     onSuccess = { publicacion ->
-                        val action = if (isEditMode) "actualizado" else "guardado"
-                        android.util.Log.d(TAG, "   Borrador $action: ${publicacion.id}")
-                        Toast.makeText(this@CreatePostActivity, "Borrador $action correctamente", Toast.LENGTH_SHORT).show()
+                        android.util.Log.d(TAG, "  Borrador guardado: ${publicacion.id}")
+                        Toast.makeText(this@CreatePostActivity, "Borrador guardado correctamente", Toast.LENGTH_SHORT).show()
                         cleanupAndFinish()
                     },
                     onFailure = { error ->
@@ -567,7 +419,7 @@ class CreatePostActivity : AppCompatActivity() {
     }
 
     // ============================================
-    //   MÉTODO PUBLISHPOST MEJORADO (CREAR/ACTUALIZAR)
+    // MÉTODO PUBLISHPOST CON API REAL
     // ============================================
     private fun publishPost() {
         if (!validateForm() || isLoading) return
@@ -591,39 +443,23 @@ class CreatePostActivity : AppCompatActivity() {
 
         setLoading(true)
 
+        // Llamada a API con corrutinas
         CoroutineScope(Dispatchers.Main).launch {
             try {
-                val result = if (isEditMode && editingDraftApiId != null) {
-                    //   ACTUALIZAR borrador a publicado
-                    android.util.Log.d(TAG, "=== Publicando borrador existente ===")
-                    withContext(Dispatchers.IO) {
-                        publicacionRepository.actualizarPublicacion(
-                            idPublicacion = editingDraftApiId!!,
-                            titulo = title,
-                            descripcion = description,
-                            estatus = "publicada",
-                            imagenes = selectedImageFiles,
-                            token = token
-                        )
-                    }
-                } else {
-                    //   CREAR nueva publicación
-                    android.util.Log.d(TAG, "=== Creando nueva publicación ===")
-                    withContext(Dispatchers.IO) {
-                        publicacionRepository.crearPublicacion(
-                            titulo = title,
-                            descripcion = description,
-                            estatus = "publicada",
-                            idAutor = currentUser.id,
-                            imagenes = selectedImageFiles,
-                            token = token
-                        )
-                    }
+                val result = withContext(Dispatchers.IO) {
+                    publicacionRepository.crearPublicacion(
+                        titulo = title,
+                        descripcion = description,
+                        estatus = "publicada",
+                        idAutor = currentUser.id,
+                        imagenes = selectedImageFiles,
+                        token = token
+                    )
                 }
 
                 result.fold(
                     onSuccess = { publicacion ->
-                        android.util.Log.d(TAG, "   Receta publicada: ${publicacion.id}")
+                        android.util.Log.d(TAG, "  Publicación creada: ${publicacion.id}")
                         Toast.makeText(this@CreatePostActivity, "¡Receta publicada exitosamente!", Toast.LENGTH_LONG).show()
 
                         // Regresar al feed
@@ -657,12 +493,12 @@ class CreatePostActivity : AppCompatActivity() {
         binding.btnSaveDraft.isEnabled = !loading
         binding.btnPublish.isEnabled = !loading
 
-        // Cambiar texto de botones según el modo y estado
+        // Cambiar texto de botones
         if (loading) {
-            binding.btnSaveDraft.text = if (isEditMode) "Actualizando..." else "Guardando..."
+            binding.btnSaveDraft.text = "Guardando..."
             binding.btnPublish.text = "Publicando..."
         } else {
-            binding.btnSaveDraft.text = if (isEditMode) "Actualizar borrador" else "Guardar como borrador"
+            binding.btnSaveDraft.text = "Guardar como borrador"
             binding.btnPublish.text = "Publicar"
         }
 

@@ -10,7 +10,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.piamoviles2.databinding.ActivityDraftsBinding
 
 // ============================================
-//   IMPORTS PARA API INTEGRATION
+// ✅ IMPORTS PARA API INTEGRATION
 // ============================================
 import com.example.piamoviles2.data.repositories.PublicacionRepository
 import com.example.piamoviles2.utils.SessionManager
@@ -23,7 +23,7 @@ class DraftsActivity : AppCompatActivity() {
     private var draftPosts = mutableListOf<Post>()
 
     // ============================================
-    //   VARIABLES PARA API INTEGRATION
+    // ✅ VARIABLES PARA API INTEGRATION
     // ============================================
     private lateinit var sessionManager: SessionManager
     private lateinit var publicacionRepository: PublicacionRepository
@@ -36,7 +36,7 @@ class DraftsActivity : AppCompatActivity() {
         binding = ActivityDraftsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        //   INICIALIZAR API COMPONENTS
+        // ✅ INICIALIZAR API COMPONENTS
         sessionManager = SessionManager(this)
         publicacionRepository = PublicacionRepository()
 
@@ -74,14 +74,14 @@ class DraftsActivity : AppCompatActivity() {
     }
 
     // ============================================
-    //   MÉTODO REEMPLAZADO CON API REAL
+    // ✅ MÉTODO REEMPLAZADO CON API REAL
     // ============================================
     private fun loadDraftPosts() {
         val currentUser = sessionManager.getCurrentUser()
         val token = sessionManager.getAccessToken()
 
         if (currentUser == null || token == null) {
-            android.util.Log.e(TAG, "  Error: Usuario o token no válido")
+            android.util.Log.e(TAG, "❌ Error: Usuario o token no válido")
             Toast.makeText(this, "Error: Sesión no válida", Toast.LENGTH_SHORT).show()
             return
         }
@@ -97,7 +97,7 @@ class DraftsActivity : AppCompatActivity() {
                 val result = withContext(Dispatchers.IO) {
                     publicacionRepository.obtenerPublicacionesUsuarioConvertidas(
                         idAutor = currentUser.id,
-                        incluirBorradores = true, //   TRUE para obtener borradores
+                        incluirBorradores = true, // ✅ TRUE para obtener borradores
                         token = token
                     )
                 }
@@ -106,7 +106,7 @@ class DraftsActivity : AppCompatActivity() {
                     onSuccess = { posts ->
                         // Filtrar solo borradores (por seguridad adicional)
                         val draftsList = posts.filter { it.isDraft }
-                        android.util.Log.d(TAG, "  Borradores cargados: ${draftsList.size}")
+                        android.util.Log.d(TAG, "✅ Borradores cargados: ${draftsList.size}")
 
                         draftPosts.clear()
                         draftPosts.addAll(draftsList)
@@ -119,13 +119,13 @@ class DraftsActivity : AppCompatActivity() {
                         }
                     },
                     onFailure = { error ->
-                        android.util.Log.e(TAG, "  Error al cargar borradores", error)
+                        android.util.Log.e(TAG, "❌ Error al cargar borradores", error)
                         handleDraftsError(error)
                     }
                 )
 
             } catch (e: Exception) {
-                android.util.Log.e(TAG, "  Exception al cargar borradores", e)
+                android.util.Log.e(TAG, "❌ Exception al cargar borradores", e)
                 Toast.makeText(this@DraftsActivity, "Error inesperado: ${e.message}", Toast.LENGTH_LONG).show()
             } finally {
                 setLoadingDrafts(false)
@@ -134,7 +134,7 @@ class DraftsActivity : AppCompatActivity() {
     }
 
     // ============================================
-    //   NUEVOS MÉTODOS DE SOPORTE PARA API
+    // ✅ NUEVOS MÉTODOS DE SOPORTE PARA API
     // ============================================
     private fun setLoadingDrafts(loading: Boolean) {
         isLoading = loading
@@ -183,7 +183,7 @@ class DraftsActivity : AppCompatActivity() {
     }
 
     // ============================================
-    //   MÉTODO UPDATEUI MEJORADO
+    // ✅ MÉTODO UPDATEUI MEJORADO
     // ============================================
     private fun updateUI() {
         android.util.Log.d(TAG, "Actualizando UI - Borradores: ${draftPosts.size}")
@@ -199,13 +199,13 @@ class DraftsActivity : AppCompatActivity() {
             binding.layoutEmptyDrafts.visibility = View.GONE
             android.util.Log.d(TAG, "Mostrando ${draftPosts.size} borradores")
 
-            //   LOGS PARA DEBUGGING:
+            // ✅ LOGS PARA DEBUGGING:
             draftPosts.forEachIndexed { index, draft ->
                 android.util.Log.d(TAG, "Borrador $index: ${draft.title}")
             }
         }
 
-        //   LOG ANTES DE submitList:
+        // ✅ LOG ANTES DE submitList:
         android.util.Log.d(TAG, "Llamando submitList con ${draftPosts.size} borradores")
         draftAdapter.submitList(draftPosts.toList())
 
@@ -216,7 +216,7 @@ class DraftsActivity : AppCompatActivity() {
     }
 
     // ============================================
-    //   MÉTODOS EXISTENTES MANTENIDOS
+    // ✅ MÉTODOS EXISTENTES MANTENIDOS
     // ============================================
     private fun editDraft(draft: Post) {
         // CONECTADO A CreatePostActivity con ID del borrador
@@ -226,7 +226,7 @@ class DraftsActivity : AppCompatActivity() {
         val intent = Intent(this, CreatePostActivity::class.java)
         intent.putExtra(CreatePostActivity.EXTRA_DRAFT_ID, draft.id)
         if (!draft.apiId.isNullOrEmpty()) {
-            intent.putExtra(CreatePostActivity.EXTRA_DRAFT_API_ID, draft.apiId)
+            // intent.putExtra(CreatePostActivity.EXTRA_DRAFT_API_ID, draft.apiId)
         }
         startActivity(intent)
     }
