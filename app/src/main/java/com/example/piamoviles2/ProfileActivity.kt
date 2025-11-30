@@ -72,7 +72,8 @@ class ProfileActivity : AppCompatActivity() {
     private fun setupRecyclerView() {
         postAdapter = PostAdapter { post ->
             val intent = Intent(this, PostDetailActivity::class.java)
-            intent.putExtra(PostDetailActivity.EXTRA_POST_ID, post.id)
+            intent.putExtra(PostDetailActivity.EXTRA_POST_API_ID, post.apiId)
+            //intent.putExtra(PostDetailActivity.EXTRA_POST_ID, post.id)
             startActivity(intent)
         }
 

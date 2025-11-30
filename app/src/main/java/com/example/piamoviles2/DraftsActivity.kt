@@ -226,7 +226,7 @@ class DraftsActivity : AppCompatActivity() {
         val intent = Intent(this, CreatePostActivity::class.java)
         intent.putExtra(CreatePostActivity.EXTRA_DRAFT_ID, draft.id)
         if (!draft.apiId.isNullOrEmpty()) {
-            // intent.putExtra(CreatePostActivity.EXTRA_DRAFT_API_ID, draft.apiId)
+            intent.putExtra(CreatePostActivity.EXTRA_DRAFT_API_ID, draft.apiId)
         }
         startActivity(intent)
     }
