@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="120dp"
+    android:layout_height="120dp"
+    android:layout_marginEnd="8dp"
+    android:layout_marginBottom="8dp">
+
+    <!-- Fondo y borde -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/image_placeholder_background" />
+
+    <!-- ImageView para preview de imagen -->
+    <ImageView
+        android:id="@+id/ivPreview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:contentDescription="Preview multimedia" />
+
+    <!-- Overlay oscuro para videos -->
+    <View
+        android:id="@+id/viewVideoOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#40000000"
+        android:visibility="gone" />
+
+    <!-- Icono de video centrado -->
+    <ImageView
+        android:id="@+id/ivVideoIcon"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="center"
+        android:src="@android:drawable/ic_media_play"
+        android:visibility="gone"
+        android:contentDescription="Video"
+        android:alpha="0.9"
+        app:tint="#FFFFFF" />
+
+    <!-- Badge de tipo en esquina inferior izquierda -->
+    <TextView
+        android:id="@+id/tvTypeBadge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_margin="6dp"
+        android:background="@drawable/circle_background"
+        android:backgroundTint="#4A7C92"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="2dp"
+        android:text="📷"
+        android:textColor="#FFFFFF"
+        android:textSize="10sp"
+        android:visibility="visible" />
+
+    <!-- Botón eliminar en esquina superior derecha -->
+    <ImageButton
+        android:id="@+id/btnRemove"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_gravity="top|end"
+        android:layout_margin="4dp"
+        android:background="@drawable/circle_background"
+        android:backgroundTint="#DC3545"
+        android:contentDescription="Eliminar"
+        android:padding="6dp"
+        android:scaleType="centerInside"
+        android:src="@android:drawable/ic_menu_close_clear_cancel"
+        app:tint="#FFFFFF" />
+
+</FrameLayout>
