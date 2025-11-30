@@ -327,6 +327,7 @@ class ComentarioRepository(
      */
     suspend fun obtenerComentariosConvertidos(
         idPublicacion: String,
+        userId: String,
         token: String
     ): Result<List<Comment>> {
         return try {
@@ -341,6 +342,13 @@ class ComentarioRepository(
                     val commentsConvertidos = comentarios.map { comentario ->
                         val comment = comentario.toComment()
 
+                        val reaccionUsuario = comentario.reacciones.find { it.idUsuario == userId }
+                        comment.userLikeState = when {
+                            reaccionUsuario?.esLike() == true -> Comment.LikeState.LIKED
+                            reaccionUsuario?.esDislike() == true -> Comment.LikeState.DISLIKED
+                            else -> Comment.LikeState.NONE
+                        }
+
                         // Si tiene respuestas, cargarlas
                         if (comentario.totalRespuestas > 0) {
                             val respuestasResult = obtenerRespuestasComentario(comentario.id, token)
@@ -349,12 +357,19 @@ class ComentarioRepository(
                                     comment.replies.clear()
                                     comment.replies.addAll(
                                         respuestas.map { respuesta ->
+                                            val reaccionRespuesta = respuesta.reacciones.find { it.idUsuario == userId }
+                                            val replyLikeState = when {
+                                                reaccionRespuesta?.esLike() == true -> Comment.LikeState.LIKED
+                                                reaccionRespuesta?.esDislike() == true -> Comment.LikeState.DISLIKED
+                                                else -> Comment.LikeState.NONE
+                                            }
+
                                             Comment.Reply(
                                                 id = respuesta.id.hashCode(),
                                                 user = respuesta.usuarioAlias ?: "Usuario",
                                                 text = respuesta.comentario,
                                                 timestamp = formatearFechaComentario(respuesta.fechaCreacion),
-                                                userLikeState = Comment.LikeState.NONE
+                                                userLikeState = replyLikeState
                                             )
                                         }
                                     )

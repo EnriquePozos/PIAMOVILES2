@@ -294,6 +294,20 @@ data class ReaccionResponse(
     fun getTipoReaccionEnum(): TipoReaccion? = TipoReaccion.fromString(tipoReaccion)
 }
 
+
+data class ReaccionComment(
+    @SerializedName("id_usuario") val idUsuario: String,
+    @SerializedName("id_comentario") val idComentario: String?,
+    @SerializedName("reaccion") val tipoReaccion: String  // "like" o "dislike"
+) {
+    // Helpers para facilitar el uso
+    fun esLike(): Boolean = tipoReaccion == "like"
+    fun esDislike(): Boolean = tipoReaccion == "dislike"
+
+    // Compatible con TipoReaccion enum existente
+    fun getTipoReaccionEnum(): TipoReaccion? = TipoReaccion.fromString(tipoReaccion)
+}
+
 // Respuesta de conteo de reacciones de una publicación
 data class ConteoReaccionesResponse(
     @SerializedName("id_publicacion") val idPublicacion: String,
@@ -401,6 +415,7 @@ data class ComentarioResponse(
     // Indicadores y estadísticas
     @SerializedName("es_respuesta") val esRespuesta: Boolean = false,
     @SerializedName("total_respuestas") val totalRespuestas: Int = 0,
+    @SerializedName("reacciones") val reacciones: List<ReaccionComment> = emptyList(),
     @SerializedName("total_reacciones") val totalReacciones: Int = 0
 ) {
     // Helpers para facilitar el uso
