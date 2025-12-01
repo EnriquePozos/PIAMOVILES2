@@ -13,6 +13,7 @@ import com.example.piamoviles2.data.repositories.FavoritoRepository
 import com.example.piamoviles2.data.models.PublicacionDetalle
 import com.example.piamoviles2.data.models.VerificarReaccionResponse
 import com.example.piamoviles2.data.models.ConteoReaccionesResponse
+import com.example.piamoviles2.data.models.MultimediaResponse
 import com.example.piamoviles2.utils.SessionManager
 import kotlinx.coroutines.*
 import com.example.piamoviles2.utils.ImageUtils
@@ -20,6 +21,10 @@ import com.example.piamoviles2.utils.ImageUtils
 class PostDetailActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityPostDetailBinding
+
+    // Variables para carrusel de multimedia
+    private lateinit var mediaCarouselAdapter: MediaCarouselAdapter
+    private var currentMediaPosition = 0
     private lateinit var commentAdapter: CommentAdapter
     private var currentPost: Post? = null
     private var comments = mutableListOf<Comment>()
@@ -90,6 +95,88 @@ class PostDetailActivity : AppCompatActivity() {
         binding.rvComments.apply {
             layoutManager = LinearLayoutManager(this@PostDetailActivity)
             adapter = commentAdapter
+        }
+    }
+
+    private fun setupMediaCarousel(mediaItems: List<MultimediaResponse>) {
+        android.util.Log.d(TAG, "=== setupMediaCarousel ===")
+        android.util.Log.d(TAG, "Total items: ${mediaItems.size}")
+
+        if (mediaItems.isEmpty()) {
+            binding.layoutMediaCarousel.visibility = View.GONE
+            return
+        }
+
+        binding.layoutMediaCarousel.visibility = View.VISIBLE
+
+        // Crear adapter
+        mediaCarouselAdapter = MediaCarouselAdapter(mediaItems) { videoUrl ->
+            playVideo(videoUrl)
+        }
+
+        // Configurar ViewPager2
+        binding.vpMediaCarousel.adapter = mediaCarouselAdapter
+        binding.vpMediaCarousel.offscreenPageLimit = 1
+
+        // Configurar flechas
+        if (mediaItems.size > 1) {
+            binding.btnPrevMedia.visibility = View.VISIBLE
+            binding.btnNextMedia.visibility = View.VISIBLE
+            binding.tvMediaCounter.visibility = View.VISIBLE
+
+            binding.btnPrevMedia.setOnClickListener {
+                val current = binding.vpMediaCarousel.currentItem
+                if (current > 0) {
+                    binding.vpMediaCarousel.currentItem = current - 1
+                }
+            }
+
+            binding.btnNextMedia.setOnClickListener {
+                val current = binding.vpMediaCarousel.currentItem
+                if (current < mediaItems.size - 1) {
+                    binding.vpMediaCarousel.currentItem = current + 1
+                }
+            }
+
+            // Listener para actualizar contador
+            binding.vpMediaCarousel.registerOnPageChangeCallback(object : androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
+                override fun onPageSelected(position: Int) {
+                    currentMediaPosition = position
+                    updateMediaCounter(position + 1, mediaItems.size)
+                    updateArrowsVisibility(position, mediaItems.size)
+                }
+            })
+
+            updateMediaCounter(1, mediaItems.size)
+        } else {
+            binding.btnPrevMedia.visibility = View.GONE
+            binding.btnNextMedia.visibility = View.GONE
+            binding.tvMediaCounter.visibility = View.GONE
+        }
+    }
+
+    private fun updateMediaCounter(current: Int, total: Int) {
+        binding.tvMediaCounter.text = "$current/$total"
+    }
+
+    private fun updateArrowsVisibility(position: Int, total: Int) {
+        binding.btnPrevMedia.alpha = if (position == 0) 0.5f else 1.0f
+        binding.btnNextMedia.alpha = if (position == total - 1) 0.5f else 1.0f
+    }
+
+    private fun playVideo(videoUrl: String) {
+        android.util.Log.d(TAG, "Reproduciendo video: $videoUrl")
+
+        // Opción 1: Abrir en navegador/app de video
+        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+            setDataAndType(android.net.Uri.parse(videoUrl), "video/*")
+        }
+
+        try {
+            startActivity(intent)
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error al reproducir video", e)
+            Toast.makeText(this, "No se puede reproducir el video", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -707,6 +794,9 @@ class PostDetailActivity : AppCompatActivity() {
                         currentPost = convertirDetalleAPost(publicacion, currentUser?.id ?: "")
                         displayPostData(currentPost!!)
 
+                        // Caramos el carrusel de multimedia
+                        setupMediaCarousel(publicacion.multimedia)
+
                         // Cargar estado de reacciones y favoritos
                         if (currentUser != null) {
                             loadInitialReactionState(apiId, currentUser.id, token)
@@ -778,20 +868,20 @@ class PostDetailActivity : AppCompatActivity() {
         binding.tvPostDescription.text = post.description
 
         // Cargar imagen real desde Cloudinary
-        if (ImageUtils.isValidImageUrl(post.imageUrl)) {
-            android.util.Log.d(TAG, "Cargando imagen desde Cloudinary: ${post.imageUrl}")
-            ImageUtils.loadPostImage(
-                context = this,
-                imageUrl = post.imageUrl,
-                imageView = binding.ivPostImage1,
-                showPlaceholder = true
-            )
-            binding.ivPostImage2.visibility = View.GONE
-        } else {
-            android.util.Log.d(TAG, "URL no válida, usando placeholder")
-            binding.ivPostImage1.setImageResource(R.mipmap.ic_launcher)
-            binding.ivPostImage2.visibility = View.GONE
-        }
+//        if (ImageUtils.isValidImageUrl(post.imageUrl)) {
+//            android.util.Log.d(TAG, "Cargando imagen desde Cloudinary: ${post.imageUrl}")
+//            ImageUtils.loadPostImage(
+//                context = this,
+//                imageUrl = post.imageUrl,
+//                imageView = binding.ivPostImage1,
+//                showPlaceholder = true
+//            )
+//            binding.ivPostImage2.visibility = View.GONE
+//        } else {
+//            android.util.Log.d(TAG, "URL no válida, usando placeholder")
+//            binding.ivPostImage1.setImageResource(R.mipmap.ic_launcher)
+//            binding.ivPostImage2.visibility = View.GONE
+//        }
 
         updateFavoriteButton()
     }

@@ -26,36 +26,74 @@
             android:orientation="vertical">
 
             <!-- Imágenes de la publicación (múltiples, apiladas verticalmente) -->
-            <LinearLayout
-                android:id="@+id/layoutImages"
+            <FrameLayout
+                android:id="@+id/layoutMediaCarousel"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:layout_margin="16dp">
+                android:layout_height="300dp"
+                android:layout_margin="16dp"
+                android:background="#E0E0E0">
 
-                <!-- Primera imagen -->
-                <ImageView
-                    android:id="@+id/ivPostImage1"
+                <!-- ViewPager2 para el carrusel -->
+                <androidx.viewpager2.widget.ViewPager2
+                    android:id="@+id/vpMediaCarousel"
                     android:layout_width="match_parent"
-                    android:layout_height="200dp"
-                    android:layout_marginBottom="8dp"
-                    android:scaleType="centerCrop"
-                    android:background="#E0E0E0"
-                    android:contentDescription="Primera imagen de la receta"
-                    tools:src="@mipmap/ic_launcher" />
+                    android:layout_height="match_parent" />
 
-                <!-- Segunda imagen -->
-                <ImageView
-                    android:id="@+id/ivPostImage2"
-                    android:layout_width="match_parent"
-                    android:layout_height="200dp"
-                    android:scaleType="centerCrop"
-                    android:background="#E0E0E0"
-                    android:contentDescription="Segunda imagen de la receta"
+                <!-- Botón anterior (flecha izquierda) -->
+                <ImageButton
+                    android:id="@+id/btnPrevMedia"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_gravity="start|center_vertical"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/circle_background"
+                    android:backgroundTint="#80000000"
+                    android:src="@android:drawable/ic_media_previous"
+                    android:contentDescription="Anterior"
                     android:visibility="gone"
-                    tools:src="@mipmap/ic_launcher" />
+                    app:tint="#FFFFFF" />
 
-            </LinearLayout>
+                <!-- Botón siguiente (flecha derecha) -->
+                <ImageButton
+                    android:id="@+id/btnNextMedia"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_gravity="end|center_vertical"
+                    android:layout_marginEnd="8dp"
+                    android:background="@drawable/circle_background"
+                    android:backgroundTint="#80000000"
+                    android:src="@android:drawable/ic_media_next"
+                    android:contentDescription="Siguiente"
+                    android:visibility="gone"
+                    app:tint="#FFFFFF" />
+
+                <!-- Indicador de página (dots) -->
+                <LinearLayout
+                    android:id="@+id/layoutPageIndicator"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|center_horizontal"
+                    android:layout_marginBottom="16dp"
+                    android:orientation="horizontal"
+                    android:visibility="gone" />
+
+                <!-- Badge de contador (ej: "1/3") -->
+                <TextView
+                    android:id="@+id/tvMediaCounter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="top|end"
+                    android:layout_margin="12dp"
+                    android:background="@drawable/circle_background"
+                    android:backgroundTint="#80000000"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="4dp"
+                    android:text="1/1"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp"
+                    android:visibility="gone" />
+
+            </FrameLayout>
 
             <!-- Botones de acción (Like/Dislike, Favoritos) -->
             <LinearLayout

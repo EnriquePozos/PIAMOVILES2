@@ -19,6 +19,7 @@ import java.io.FileOutputStream
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
+import com.example.piamoviles2.data.models.MultimediaResponse
 import java.io.InputStream
 import java.net.URL
 
@@ -26,10 +27,12 @@ class CreatePostActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityCreatePostBinding
     private lateinit var imagePickerHelper: ImagePickerHelper
+    private lateinit var videoPickerHelper: VideoPickerHelper
 
     // Control de imágenes
-    private var selectedImages = mutableListOf<Bitmap?>()
-    private var currentImageSlot = 0
+    private val multimediaItems = mutableListOf<MultimediaItem>()
+    private lateinit var multimediaAdapter: MultimediaAdapter
+    private val MAX_MULTIMEDIA = 10 // Límite de items multimedia
 
     // Modo de edición
     private var isEditMode = false
@@ -41,7 +44,6 @@ class CreatePostActivity : AppCompatActivity() {
     // ============================================
     private lateinit var publicacionRepository: PublicacionRepository
     private lateinit var sessionManager: SessionManager
-    private val selectedImageFiles = mutableListOf<File>()
     private var isLoading = false
 
     companion object {
@@ -62,6 +64,8 @@ class CreatePostActivity : AppCompatActivity() {
         initializeImages()
         setupHeader()
         setupImagePicker()
+        setupVideoPicker()
+        setupMultimediaRecyclerView()
         setupClickListeners()
         setupBackPressedHandler()
 
@@ -75,6 +79,52 @@ class CreatePostActivity : AppCompatActivity() {
         checkEditMode()
 
         android.util.Log.d(TAG, "CreatePostActivity iniciada")
+    }
+
+    private fun setupMultimediaRecyclerView() {
+        multimediaAdapter = MultimediaAdapter(multimediaItems) { position ->
+            removeMultimediaItem(position)
+        }
+
+        binding.rvMultimedia.apply {
+            layoutManager = androidx.recyclerview.widget.LinearLayoutManager(
+                this@CreatePostActivity,
+                androidx.recyclerview.widget.LinearLayoutManager.HORIZONTAL,
+                false
+            )
+            adapter = multimediaAdapter
+        }
+
+        // Mostrar/ocultar mensaje de empty state
+        updateEmptyState()
+
+        android.util.Log.d(TAG, "RecyclerView de multimedia configurado")
+    }
+
+    private fun removeMultimediaItem(position: Int) {
+        if (position in multimediaItems.indices) {
+            val item = multimediaItems[position]
+
+            // Limpiar recursos del item
+            item.cleanup()
+
+            // Eliminar del adapter
+            multimediaAdapter.removeItem(position)
+            updateEmptyState()
+
+            Toast.makeText(this, "Elemento eliminado (${multimediaItems.size}/$MAX_MULTIMEDIA)", Toast.LENGTH_SHORT).show()
+            android.util.Log.d(TAG, "✅ Item eliminado - Total restante: ${multimediaItems.size}")
+        }
+    }
+
+    private fun updateEmptyState() {
+        if (multimediaItems.isEmpty()) {
+            binding.tvEmptyMultimedia.visibility = View.VISIBLE
+            binding.rvMultimedia.visibility = View.GONE
+        } else {
+            binding.tvEmptyMultimedia.visibility = View.GONE
+            binding.rvMultimedia.visibility = View.VISIBLE
+        }
     }
 
     // ============================================
@@ -101,9 +151,10 @@ class CreatePostActivity : AppCompatActivity() {
 
     private fun initializeImages() {
         // Inicializar lista de imágenes
-        repeat(MAX_IMAGES) {
-            selectedImages.add(null)
-        }
+//        repeat(MAX_IMAGES) {
+//            selectedImages.add(null)
+//        }
+        android.util.Log.d(TAG, "Imágenes inicializadas")
     }
 
     private fun setupHeader() {
@@ -121,37 +172,55 @@ class CreatePostActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupVideoPicker() {
+        videoPickerHelper = VideoPickerHelper(this) { videoResult ->
+            if (videoResult != null) {
+                addVideoToMultimedia(videoResult)
+            } else {
+                Toast.makeText(this, "Error al cargar el video", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     private fun setupClickListeners() {
-        // Botones de selección de imagen
-        binding.btnCamera.setOnClickListener {
-            if (hasAvailableImageSlot()) {
-                imagePickerHelper.openCamera()
-            } else {
-                Toast.makeText(this, "Máximo 3 imágenes permitidas", Toast.LENGTH_SHORT).show()
+        // 🆕 Botón para agregar multimedia
+        binding.btnAddMultimedia.setOnClickListener {
+            if (multimediaItems.size >= MAX_MULTIMEDIA) {
+                Toast.makeText(this, "Máximo $MAX_MULTIMEDIA elementos permitidos", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
             }
+            showMultimediaSourceDialog()
         }
-
-        binding.btnGallery.setOnClickListener {
-            if (hasAvailableImageSlot()) {
-                imagePickerHelper.openGallery()
-            } else {
-                Toast.makeText(this, "Máximo 3 imágenes permitidas", Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        // Botones para agregar imágenes en slots específicos
-        binding.layoutAddImage1.setOnClickListener { selectImageForSlot(0) }
-        binding.layoutAddImage2.setOnClickListener { selectImageForSlot(1) }
-        binding.layoutAddImage3.setOnClickListener { selectImageForSlot(2) }
-
-        // Botones para remover imágenes
-        binding.btnRemoveImage1.setOnClickListener { removeImage(0) }
-        binding.btnRemoveImage2.setOnClickListener { removeImage(1) }
-        binding.btnRemoveImage3.setOnClickListener { removeImage(2) }
 
         // Botones de acción
         binding.btnSaveDraft.setOnClickListener { saveDraft() }
         binding.btnPublish.setOnClickListener { publishPost() }
+    }
+
+    private fun showMultimediaSourceDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Agregar multimedia")
+            .setItems(arrayOf("📷 Foto (Cámara)", "🖼️ Imagen (Galería)", "🎥 Video")) { _, which ->
+                when (which) {
+                    0 -> imagePickerHelper.openCamera()
+                    1 -> imagePickerHelper.openGallery()
+                    2 -> openVideoPicker()
+                }
+            }
+            .show()
+    }
+
+    private fun openVideoPicker() {
+        // Mostrar opciones: Cámara o Galería
+        AlertDialog.Builder(this)
+            .setTitle("Seleccionar video")
+            .setItems(arrayOf("📹 Grabar video", "🎬 Galería de videos")) { _, which ->
+                when (which) {
+                    0 -> videoPickerHelper.openCamera()
+                    1 -> videoPickerHelper.openGallery()
+                }
+            }
+            .show()
     }
 
     private fun setupBackPressedHandler() {
@@ -166,9 +235,9 @@ class CreatePostActivity : AppCompatActivity() {
         // Verificar si hay cambios sin guardar
         val title = binding.etRecipeTitle.text.toString().trim()
         val description = binding.etRecipeDescription.text.toString().trim()
-        val hasImages = selectedImages.any { it != null }
+        val hasMultimedia = multimediaItems.isNotEmpty() // ✅ CORRECTO
 
-        if (title.isNotEmpty() || description.isNotEmpty() || hasImages) {
+        if (title.isNotEmpty() || description.isNotEmpty() || hasMultimedia) {
             AlertDialog.Builder(this)
                 .setTitle("¿Salir sin guardar?")
                 .setMessage("Tienes cambios sin guardar. ¿Quieres guardar como borrador antes de salir?")
@@ -255,7 +324,7 @@ class CreatePostActivity : AppCompatActivity() {
 
                         // Cargar imágenes si existen
                         publicacion.multimedia?.let { multimedia ->
-                            loadImagesFromUrls(multimedia.map { it.url })
+                            loadMultimediaFromApi(multimedia)
                         }
 
                         // Actualizar botones para modo edición
@@ -279,37 +348,141 @@ class CreatePostActivity : AppCompatActivity() {
         }
     }
 
+    private fun loadMultimediaFromApi(multimediaList: List<MultimediaResponse>) {
+        android.util.Log.d(TAG, "=== loadMultimediaFromApi ===")
+        android.util.Log.d(TAG, "Total items: ${multimediaList.size}")
+
+        multimediaList.forEach { media ->
+            android.util.Log.d(TAG, "Procesando: tipo=${media.tipo}, url=${media.url}")
+
+            when (media.tipo.lowercase()) {
+                "imagen" -> loadImageFromUrl(media.url)
+                "video" -> loadVideoFromUrl(media.url)
+                else -> {
+                    android.util.Log.w(TAG, "Tipo desconocido: ${media.tipo}")
+                    loadImageFromUrl(media.url) // Fallback a imagen
+                }
+            }
+        }
+    }
+
     // ============================================
-    // 🆕 CARGAR IMÁGENES DESDE URLs
+// CARGAR IMAGEN DESDE URL
+// ============================================
+    private fun loadImageFromUrl(url: String) {
+        android.util.Log.d(TAG, "Cargando IMAGEN desde: $url")
+
+        Glide.with(this)
+            .asBitmap()
+            .load(url)
+            .into(object : CustomTarget<Bitmap>() {
+                override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                    android.util.Log.d(TAG, "✅ Imagen cargada exitosamente")
+
+                    // Crear item multimedia
+                    val item = MultimediaItem.crearImagen(resource)
+
+                    // Convertir a archivo
+                    convertBitmapToFileForItem(resource, item)
+
+                    // Agregar al adapter
+                    multimediaAdapter.addItem(item)
+                    updateEmptyState()
+                }
+
+                override fun onLoadCleared(placeholder: android.graphics.drawable.Drawable?) {
+                    // No hacer nada
+                }
+
+                override fun onLoadFailed(errorDrawable: android.graphics.drawable.Drawable?) {
+                    android.util.Log.e(TAG, "❌ Error al cargar imagen desde $url")
+                }
+            })
+    }
+
     // ============================================
-    private fun loadImagesFromUrls(imageUrls: List<String>) {
-        android.util.Log.d(TAG, "=== Cargando ${imageUrls.size} imágenes desde URLs ===")
+// 🆕 CARGAR VIDEO DESDE URL
+// ============================================
+    private fun loadVideoFromUrl(url: String) {
+        android.util.Log.d(TAG, "Cargando VIDEO desde: $url")
 
-        imageUrls.forEachIndexed { index, url ->
-            if (index < MAX_IMAGES) {
-                android.util.Log.d(TAG, "Cargando imagen $index: $url")
+        // Generar thumbnail del video usando Glide
+        Glide.with(this)
+            .asBitmap()
+            .load(url)
+            .into(object : CustomTarget<Bitmap>() {
+                override fun onResourceReady(thumbnail: Bitmap, transition: Transition<in Bitmap>?) {
+                    android.util.Log.d(TAG, "✅ Thumbnail de video generado")
 
-                Glide.with(this)
-                    .asBitmap()
-                    .load(url)
-                    .into(object : CustomTarget<Bitmap>() {
-                        override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
-                            android.util.Log.d(TAG, "✅ Imagen $index cargada exitosamente")
-                            selectedImages[index] = resource
-                            updateImageUI(index, resource)
+                    // Crear item multimedia de tipo VIDEO
+                    val item = MultimediaItem.crearVideo(
+                        uri = android.net.Uri.parse(url),
+                        thumbnail = thumbnail
+                    )
 
-                            // Convertir a archivo para futuras actualizaciones
-                            convertBitmapToFile(resource, index)
-                        }
+                    // Descargar el video a un archivo temporal
+                    downloadVideoToFile(url, item)
+                }
 
-                        override fun onLoadCleared(placeholder: android.graphics.drawable.Drawable?) {
-                            // No hacer nada
-                        }
+                override fun onLoadCleared(placeholder: android.graphics.drawable.Drawable?) {
+                    // No hacer nada
+                }
 
-                        override fun onLoadFailed(errorDrawable: android.graphics.drawable.Drawable?) {
-                            android.util.Log.e(TAG, "❌ Error al cargar imagen $index desde $url")
-                        }
-                    })
+                override fun onLoadFailed(errorDrawable: android.graphics.drawable.Drawable?) {
+                    android.util.Log.e(TAG, "❌ Error al cargar thumbnail de video desde $url")
+
+                    // Crear item sin thumbnail
+                    val item = MultimediaItem.crearVideo(
+                        uri = android.net.Uri.parse(url),
+                        thumbnail = null
+                    )
+
+                    downloadVideoToFile(url, item)
+                }
+            })
+    }
+
+    // ============================================
+// 🆕 DESCARGAR VIDEO A ARCHIVO TEMPORAL
+// ============================================
+    private fun downloadVideoToFile(url: String, item: MultimediaItem) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                android.util.Log.d(TAG, "Descargando video desde: $url")
+
+                // Crear archivo temporal
+                val tempFile = File(cacheDir, "video_${item.id}.mp4")
+
+                // Descargar video
+                val connection = java.net.URL(url).openConnection()
+                connection.connect()
+
+                connection.getInputStream().use { input ->
+                    FileOutputStream(tempFile).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+
+                android.util.Log.d(TAG, "✅ Video descargado: ${tempFile.name}, tamaño: ${tempFile.length()} bytes")
+
+                // Asignar archivo al item
+                item.file = tempFile
+
+                // Agregar al adapter en el hilo principal
+                withContext(Dispatchers.Main) {
+                    multimediaAdapter.addItem(item)
+                    updateEmptyState()
+                }
+
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "❌ Error al descargar video", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@CreatePostActivity,
+                        "Error al cargar video desde URL",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
         }
     }
@@ -334,134 +507,74 @@ class CreatePostActivity : AppCompatActivity() {
         }
     }
 
-    private fun hasAvailableImageSlot(): Boolean {
-        return selectedImages.any { it == null }
-    }
-
-    private fun selectImageForSlot(slot: Int) {
-        if (selectedImages[slot] == null && hasAvailableImageSlot()) {
-            currentImageSlot = slot
-            showImageSourceDialog()
-        }
-    }
-
-    private fun showImageSourceDialog() {
-        AlertDialog.Builder(this)
-            .setTitle("Seleccionar imagen")
-            .setItems(arrayOf("Cámara", "Galería")) { _, which ->
-                when (which) {
-                    0 -> imagePickerHelper.openCamera()
-                    1 -> imagePickerHelper.openGallery()
-                }
-            }
-            .show()
-    }
-
     private fun addImageToSlot(bitmap: Bitmap) {
         val resizedBitmap = ImagePickerHelper.resizeBitmap(bitmap)
-        selectedImages[currentImageSlot] = resizedBitmap
-        updateImageUI(currentImageSlot, resizedBitmap)
 
-        // ============================================
-        //   NUEVO: CONVERTIR BITMAP A FILE PARA API
-        // ============================================
-        convertBitmapToFile(resizedBitmap, currentImageSlot)
+        // Crear item de multimedia
+        val item = MultimediaItem.crearImagen(resizedBitmap)
+
+        // Convertir a archivo
+        convertBitmapToFileForItem(resizedBitmap, item)
+
+        // Agregar al adapter
+        multimediaAdapter.addItem(item)
+        updateEmptyState()
+
+        Toast.makeText(this, "Imagen agregada (${multimediaItems.size}/$MAX_MULTIMEDIA)", Toast.LENGTH_SHORT).show()
+        android.util.Log.d(TAG, "✅ Imagen agregada - Total: ${multimediaItems.size}")
+    }
+
+    private fun addVideoToMultimedia(videoResult: VideoPickerHelper.VideoResult) {
+        try {
+            android.util.Log.d(TAG, "=== Agregando video a multimedia ===")
+
+            // Crear item multimedia de tipo VIDEO
+            val item = MultimediaItem.crearVideo(
+                uri = videoResult.uri,
+                thumbnail = videoResult.thumbnail
+            )
+
+            // Asignar el archivo del video
+            item.file = videoResult.file
+
+            // Agregar al adapter
+            multimediaAdapter.addItem(item)
+            updateEmptyState()
+
+            val durationSec = videoResult.durationMs / 1000
+            val sizeMB = String.format("%.1f", videoResult.sizeBytes / (1024.0 * 1024.0))
+
+            Toast.makeText(
+                this,
+                "Video agregado: ${durationSec}s, ${sizeMB}MB (${multimediaItems.size}/$MAX_MULTIMEDIA)",
+                Toast.LENGTH_LONG
+            ).show()
+
+            android.util.Log.d(TAG, "✅ Video agregado - Total: ${multimediaItems.size}")
+
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "❌ Error al agregar video", e)
+            Toast.makeText(this, "Error al procesar video: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
     }
 
     // ============================================
     // NUEVO MÉTODO PARA CONVERTIR BITMAP A FILE
     // ============================================
-    private fun convertBitmapToFile(bitmap: Bitmap, slot: Int) {
+    private fun convertBitmapToFileForItem(bitmap: Bitmap, item: MultimediaItem) {
         try {
-            // Crear archivo temporal
-            val tempFile = File(cacheDir, "image_slot_${slot}_${System.currentTimeMillis()}.jpg")
+            val tempFile = File(cacheDir, "multimedia_${item.id}.jpg")
 
-            // Convertir bitmap a archivo
             FileOutputStream(tempFile).use { out ->
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
             }
 
-            // Agregar a la lista de archivos (reemplazar si ya existe para este slot)
-            // Primero remover archivo anterior del slot si existe
-            selectedImageFiles.removeAll { file ->
-                if (file.name.contains("image_slot_${slot}_")) {
-                    file.delete() // Eliminar archivo anterior
-                    true
-                } else {
-                    false
-                }
-            }
+            item.file = tempFile
 
-            // Agregar nuevo archivo
-            selectedImageFiles.add(tempFile)
-
-            android.util.Log.d(TAG, "  Imagen convertida a archivo: ${tempFile.name}")
-            android.util.Log.d(TAG, "Total archivos: ${selectedImageFiles.size}")
-
+            android.util.Log.d(TAG, "✅ Imagen convertida a archivo: ${tempFile.name}")
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "  Error al convertir bitmap a archivo", e)
+            android.util.Log.e(TAG, "❌ Error al convertir bitmap a archivo", e)
         }
-    }
-
-    private fun updateImageUI(slot: Int, bitmap: Bitmap?) {
-        when (slot) {
-            0 -> {
-                if (bitmap != null) {
-                    binding.ivImage1.setImageBitmap(bitmap)
-                    binding.ivImage1.visibility = View.VISIBLE
-                    binding.layoutAddImage1.visibility = View.GONE
-                    binding.btnRemoveImage1.visibility = View.VISIBLE
-                } else {
-                    binding.ivImage1.visibility = View.GONE
-                    binding.layoutAddImage1.visibility = View.VISIBLE
-                    binding.btnRemoveImage1.visibility = View.GONE
-                }
-            }
-            1 -> {
-                if (bitmap != null) {
-                    binding.ivImage2.setImageBitmap(bitmap)
-                    binding.ivImage2.visibility = View.VISIBLE
-                    binding.layoutAddImage2.visibility = View.GONE
-                    binding.btnRemoveImage2.visibility = View.VISIBLE
-                } else {
-                    binding.ivImage2.visibility = View.GONE
-                    binding.layoutAddImage2.visibility = View.VISIBLE
-                    binding.btnRemoveImage2.visibility = View.GONE
-                }
-            }
-            2 -> {
-                if (bitmap != null) {
-                    binding.ivImage3.setImageBitmap(bitmap)
-                    binding.ivImage3.visibility = View.VISIBLE
-                    binding.layoutAddImage3.visibility = View.GONE
-                    binding.btnRemoveImage3.visibility = View.VISIBLE
-                } else {
-                    binding.ivImage3.visibility = View.GONE
-                    binding.layoutAddImage3.visibility = View.VISIBLE
-                    binding.btnRemoveImage3.visibility = View.GONE
-                }
-            }
-        }
-    }
-
-    private fun removeImage(slot: Int) {
-        selectedImages[slot] = null
-        updateImageUI(slot, null)
-
-        // ============================================
-        //   NUEVO: REMOVER ARCHIVO TAMBIÉN
-        // ============================================
-        selectedImageFiles.removeAll { file ->
-            if (file.name.contains("image_slot_${slot}_")) {
-                file.delete() // Eliminar archivo del cache
-                android.util.Log.d(TAG, "Archivo eliminado: ${file.name}")
-                true
-            } else {
-                false
-            }
-        }
-
-        Toast.makeText(this, "Imagen eliminada", Toast.LENGTH_SHORT).show()
     }
 
     private fun validateForm(): Boolean {
@@ -516,8 +629,9 @@ class CreatePostActivity : AppCompatActivity() {
 
         CoroutineScope(Dispatchers.Main).launch {
             try {
+                val archivosMultimedia = multimediaAdapter.getFiles() // ✅ OBTENER ARCHIVOS DEL ADAPTER
+
                 val result = if (isEditMode && editingDraftApiId != null) {
-                    // 🆕 ACTUALIZAR borrador existente
                     android.util.Log.d(TAG, "=== Actualizando borrador existente ===")
                     withContext(Dispatchers.IO) {
                         publicacionRepository.actualizarPublicacion(
@@ -525,12 +639,11 @@ class CreatePostActivity : AppCompatActivity() {
                             titulo = title,
                             descripcion = description,
                             estatus = "borrador",
-                            imagenes = selectedImageFiles.ifEmpty { null },
+                            imagenes = archivosMultimedia.ifEmpty { null }, // ✅ USAR ARCHIVOS DEL ADAPTER
                             token = token
                         )
                     }
                 } else {
-                    // 🆕 CREAR nuevo borrador
                     android.util.Log.d(TAG, "=== Creando nuevo borrador ===")
                     withContext(Dispatchers.IO) {
                         publicacionRepository.crearPublicacion(
@@ -538,7 +651,7 @@ class CreatePostActivity : AppCompatActivity() {
                             descripcion = description,
                             estatus = "borrador",
                             idAutor = currentUser.id,
-                            imagenes = selectedImageFiles.ifEmpty { null },
+                            imagenes = archivosMultimedia.ifEmpty { null }, // ✅ USAR ARCHIVOS DEL ADAPTER
                             token = token
                         )
                     }
@@ -576,7 +689,7 @@ class CreatePostActivity : AppCompatActivity() {
         val description = binding.etRecipeDescription.text.toString().trim()
 
         // Validar que tenga al menos una imagen para publicar
-        if (selectedImages.all { it == null }) {
+        if (multimediaAdapter.isEmpty()) { // ✅ CORRECTO
             Toast.makeText(this, "Agrega al menos una imagen para publicar", Toast.LENGTH_SHORT).show()
             return
         }
@@ -593,8 +706,9 @@ class CreatePostActivity : AppCompatActivity() {
 
         CoroutineScope(Dispatchers.Main).launch {
             try {
+                val archivosMultimedia = multimediaAdapter.getFiles() // ✅ OBTENER ARCHIVOS
+
                 val result = if (isEditMode && editingDraftApiId != null) {
-                    // 🆕 ACTUALIZAR borrador a publicado
                     android.util.Log.d(TAG, "=== Publicando borrador existente ===")
                     withContext(Dispatchers.IO) {
                         publicacionRepository.actualizarPublicacion(
@@ -602,12 +716,11 @@ class CreatePostActivity : AppCompatActivity() {
                             titulo = title,
                             descripcion = description,
                             estatus = "publicada",
-                            imagenes = selectedImageFiles,
+                            imagenes = archivosMultimedia, // ✅ USAR ARCHIVOS DEL ADAPTER
                             token = token
                         )
                     }
                 } else {
-                    // 🆕 CREAR nueva publicación
                     android.util.Log.d(TAG, "=== Creando nueva publicación ===")
                     withContext(Dispatchers.IO) {
                         publicacionRepository.crearPublicacion(
@@ -615,7 +728,7 @@ class CreatePostActivity : AppCompatActivity() {
                             descripcion = description,
                             estatus = "publicada",
                             idAutor = currentUser.id,
-                            imagenes = selectedImageFiles,
+                            imagenes = archivosMultimedia, // ✅ USAR ARCHIVOS DEL ADAPTER
                             token = token
                         )
                     }
@@ -626,7 +739,6 @@ class CreatePostActivity : AppCompatActivity() {
                         android.util.Log.d(TAG, "✅ Receta publicada: ${publicacion.id}")
                         Toast.makeText(this@CreatePostActivity, "¡Receta publicada exitosamente!", Toast.LENGTH_LONG).show()
 
-                        // Regresar al feed
                         val intent = Intent(this@CreatePostActivity, FeedActivity::class.java)
                         intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
                         startActivity(intent)
@@ -670,20 +782,14 @@ class CreatePostActivity : AppCompatActivity() {
     }
 
     private fun cleanupAndFinish() {
-        // Limpiar archivos temporales
-        selectedImageFiles.forEach { file ->
-            try {
-                if (file.exists()) {
-                    file.delete()
-                    android.util.Log.d(TAG, "Archivo temporal eliminado: ${file.name}")
-                }
-            } catch (e: Exception) {
-                android.util.Log.w(TAG, "No se pudo eliminar archivo: ${file.name}")
-            }
+        // Limpiar todos los items multimedia
+        multimediaItems.forEach { item ->
+            item.cleanup()
         }
 
-        // Limpiar lista
-        selectedImageFiles.clear()
+        multimediaItems.clear()
+
+        android.util.Log.d(TAG, "Limpieza completada - Todos los archivos temporales eliminados")
 
         finish()
     }

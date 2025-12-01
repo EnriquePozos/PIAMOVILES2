@@ -92,7 +92,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="8dp"
-                android:text="Imágenes de la receta"
+                android:text="Imágenes y videos de la receta"
                 android:textColor="#333333"
                 android:textSize="14sp"
                 android:textStyle="bold" />
@@ -101,232 +101,51 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"
-                android:text="Agrega hasta 3 fotos de tu receta"
+                android:text="Agrega imagenes o videos de tu receta"
                 android:textColor="#666666"
                 android:textSize="12sp" />
 
-            <!-- Container para imágenes -->
-            <LinearLayout
+            <!-- RecyclerView para multimedia dinámica -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvMultimedia"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="16dp">
+                android:layout_marginBottom="16dp"
+                android:clipToPadding="false"
+                android:paddingStart="0dp"
+                android:paddingEnd="8dp"
+                tools:listitem="@layout/item_multimedia_preview"
+                tools:itemCount="3" />
 
-                <!-- Imagen 1 -->
-                <FrameLayout
-                    android:layout_width="0dp"
-                    android:layout_height="100dp"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="8dp">
-
-                    <ImageView
-                        android:id="@+id/ivImage1"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:background="@drawable/image_placeholder_background"
-                        android:scaleType="centerCrop"
-                        android:contentDescription="Imagen 1"
-                        android:visibility="gone" />
-
-                    <LinearLayout
-                        android:id="@+id/layoutAddImage1"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:background="@drawable/image_placeholder_background"
-                        android:orientation="vertical"
-                        android:gravity="center"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:foreground="?android:attr/selectableItemBackground">
-
-                        <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:layout_marginBottom="4dp"
-                            android:src="@drawable/ic_launcher_foreground"
-                            android:alpha="0.7"
-                            android:contentDescription="Agregar imagen" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Agregar"
-                            android:textColor="#666666"
-                            android:textSize="10sp" />
-
-                    </LinearLayout>
-
-                    <!-- Botón eliminar imagen 1 -->
-                    <ImageButton
-                        android:id="@+id/btnRemoveImage1"
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:layout_gravity="top|end"
-                        android:layout_margin="4dp"
-                        android:background="@drawable/circle_background"
-                        android:src="@drawable/ic_launcher_foreground"
-                        android:contentDescription="Eliminar imagen"
-                        android:visibility="gone"
-                        android:backgroundTint="#DC3545" />
-
-                </FrameLayout>
-
-                <!-- Imagen 2 -->
-                <FrameLayout
-                    android:layout_width="0dp"
-                    android:layout_height="100dp"
-                    android:layout_weight="1"
-                    android:layout_marginHorizontal="4dp">
-
-                    <ImageView
-                        android:id="@+id/ivImage2"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:background="@drawable/image_placeholder_background"
-                        android:scaleType="centerCrop"
-                        android:contentDescription="Imagen 2"
-                        android:visibility="gone" />
-
-                    <LinearLayout
-                        android:id="@+id/layoutAddImage2"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:background="@drawable/image_placeholder_background"
-                        android:orientation="vertical"
-                        android:gravity="center"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:foreground="?android:attr/selectableItemBackground">
-
-                        <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:layout_marginBottom="4dp"
-                            android:src="@drawable/ic_launcher_foreground"
-                            android:alpha="0.7"
-                            android:contentDescription="Agregar imagen" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Agregar"
-                            android:textColor="#666666"
-                            android:textSize="10sp" />
-
-                    </LinearLayout>
-
-                    <!-- Botón eliminar imagen 2 -->
-                    <ImageButton
-                        android:id="@+id/btnRemoveImage2"
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:layout_gravity="top|end"
-                        android:layout_margin="4dp"
-                        android:background="@drawable/circle_background"
-                        android:src="@drawable/ic_launcher_foreground"
-                        android:contentDescription="Eliminar imagen"
-                        android:visibility="gone"
-                        android:backgroundTint="#DC3545" />
-
-                </FrameLayout>
-
-                <!-- Imagen 3 -->
-                <FrameLayout
-                    android:layout_width="0dp"
-                    android:layout_height="100dp"
-                    android:layout_weight="1"
-                    android:layout_marginStart="8dp">
-
-                    <ImageView
-                        android:id="@+id/ivImage3"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:background="@drawable/image_placeholder_background"
-                        android:scaleType="centerCrop"
-                        android:contentDescription="Imagen 3"
-                        android:visibility="gone" />
-
-                    <LinearLayout
-                        android:id="@+id/layoutAddImage3"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:background="@drawable/image_placeholder_background"
-                        android:orientation="vertical"
-                        android:gravity="center"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:foreground="?android:attr/selectableItemBackground">
-
-                        <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:layout_marginBottom="4dp"
-                            android:src="@drawable/ic_launcher_foreground"
-                            android:alpha="0.7"
-                            android:contentDescription="Agregar imagen" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Agregar"
-                            android:textColor="#666666"
-                            android:textSize="10sp" />
-
-                    </LinearLayout>
-
-                    <!-- Botón eliminar imagen 3 -->
-                    <ImageButton
-                        android:id="@+id/btnRemoveImage3"
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:layout_gravity="top|end"
-                        android:layout_margin="4dp"
-                        android:background="@drawable/circle_background"
-                        android:src="@drawable/ic_launcher_foreground"
-                        android:contentDescription="Eliminar imagen"
-                        android:visibility="gone"
-                        android:backgroundTint="#DC3545" />
-
-                </FrameLayout>
-
-            </LinearLayout>
-
-            <!-- Opciones de imagen -->
-            <LinearLayout
+            <!-- Mensaje cuando no hay multimedia -->
+            <TextView
+                android:id="@+id/tvEmptyMultimedia"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
+                android:layout_height="120dp"
+                android:gravity="center"
+                android:text="📷 Aún no has agregado imágenes o videos\n\nToca el botón de abajo para empezar"
+                android:textColor="#999999"
+                android:textSize="14sp"
+                android:background="@drawable/image_placeholder_background"
+                android:layout_marginBottom="16dp"
+                android:visibility="visible" />
+
+            <!-- Botón para agregar multimedia -->
+            <Button
+                android:id="@+id/btnAddMultimedia"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:layout_gravity="center_horizontal"
                 android:layout_marginBottom="32dp"
-                android:gravity="center">
+                android:text="➕ Agregar imagen/video"
+                android:textColor="#4A7C92"
+                android:textSize="12sp"
+                android:backgroundTint="#FFFFFF"
+                app:cornerRadius="20dp"
+                app:strokeColor="#4A7C92"
+                app:strokeWidth="1dp"
+                android:paddingHorizontal="16dp" />
 
-                <Button
-                    android:id="@+id/btnCamera"
-                    android:layout_width="wrap_content"
-                    android:layout_height="40dp"
-                    android:layout_marginEnd="12dp"
-                    android:text="📷 Cámara"
-                    android:textColor="#4A7C92"
-                    android:textSize="12sp"
-                    android:backgroundTint="#FFFFFF"
-                    app:cornerRadius="20dp"
-                    app:strokeColor="#4A7C92"
-                    app:strokeWidth="1dp"
-                    android:paddingHorizontal="16dp" />
-
-                <Button
-                    android:id="@+id/btnGallery"
-                    android:layout_width="wrap_content"
-                    android:layout_height="40dp"
-                    android:text="🖼️ Galería"
-                    android:textColor="#4A7C92"
-                    android:textSize="12sp"
-                    android:backgroundTint="#FFFFFF"
-                    app:cornerRadius="20dp"
-                    app:strokeColor="#4A7C92"
-                    app:strokeWidth="1dp"
-                    android:paddingHorizontal="16dp" />
-
-            </LinearLayout>
 
             <!-- Separador -->
             <View

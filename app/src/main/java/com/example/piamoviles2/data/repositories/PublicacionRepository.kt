@@ -13,7 +13,6 @@ import java.io.File
 class PublicacionRepository(
     private val apiService: ApiService = NetworkConfig.apiService
 ) {
-
     // CREAR PUBLICACIÓN - FORMDATA CON ARCHIVOS
     suspend fun crearPublicacion(
         titulo: String,
@@ -27,11 +26,10 @@ class PublicacionRepository(
         android.util.Log.d("PUBLICACION_REPO_DEBUG", "Título: $titulo")
         android.util.Log.d("PUBLICACION_REPO_DEBUG", "Estatus: $estatus")
         android.util.Log.d("PUBLICACION_REPO_DEBUG", "ID Autor: $idAutor")
-        android.util.Log.d("PUBLICACION_REPO_DEBUG", "Imágenes: ${imagenes?.size ?: 0}")
+        android.util.Log.d("PUBLICACION_REPO_DEBUG", "Archivos multimedia: ${imagenes?.size ?: 0}")
 
         return try {
             val textMediaType = "text/plain".toMediaTypeOrNull()
-            val imageMediaType = "image/jpeg".toMediaTypeOrNull()
 
             // Crear RequestBody para campos de texto
             val tituloBody = RequestBody.create(textMediaType, titulo)
@@ -39,10 +37,18 @@ class PublicacionRepository(
             val idAutorBody = RequestBody.create(textMediaType, idAutor)
             val descripcionBody = descripcion?.let { RequestBody.create(textMediaType, it) }
 
-            // Crear MultipartBody.Part para las imágenes (si existen)
+            // 🆕 Crear MultipartBody.Part para IMÁGENES Y VIDEOS
             val archivosParts = imagenes?.mapIndexed { index, file ->
-                val requestFile = RequestBody.create(imageMediaType, file)
-                MultipartBody.Part.createFormData("archivos", "imagen_$index.jpg", requestFile)
+                // ✅ Detectar el tipo de archivo correctamente
+                val mediaType = getMediaTypeForFile(file)
+                val fileName = getFileNameForUpload(file, index)
+
+                android.util.Log.d("PUBLICACION_REPO_DEBUG", "Archivo $index: ${file.name}")
+                android.util.Log.d("PUBLICACION_REPO_DEBUG", "Media Type: $mediaType")
+                android.util.Log.d("PUBLICACION_REPO_DEBUG", "Tamaño: ${file.length()} bytes")
+
+                val requestFile = RequestBody.create(mediaType.toMediaTypeOrNull(), file)
+                MultipartBody.Part.createFormData("archivos", fileName, requestFile)
             }
 
             android.util.Log.d("PUBLICACION_REPO_DEBUG", "RequestBodies creados, llamando a API...")
@@ -60,17 +66,53 @@ class PublicacionRepository(
             android.util.Log.d("PUBLICACION_REPO_DEBUG", "Response successful: ${response.isSuccessful}")
 
             if (response.isSuccessful && response.body() != null) {
-                android.util.Log.d("PUBLICACION_REPO_DEBUG", " Publicación creada exitosamente")
+                android.util.Log.d("PUBLICACION_REPO_DEBUG", "✅ Publicación creada exitosamente")
                 Result.success(response.body()!!)
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Error en respuesta: $errorMsg")
+                android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Error en respuesta: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Exception: ${e.message}")
+            android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Exception: ${e.message}", e)
             Result.failure(e)
         }
+    }
+
+    private fun getMediaTypeForFile(file: File): String {
+        val fileName = file.name.lowercase()
+
+        return when {
+            // Videos
+            fileName.endsWith(".mp4") -> "video/mp4"
+            fileName.endsWith(".mov") -> "video/quicktime"
+            fileName.endsWith(".avi") -> "video/x-msvideo"
+            fileName.endsWith(".mkv") -> "video/x-matroska"
+            fileName.endsWith(".3gp") -> "video/3gpp"
+            fileName.endsWith(".webm") -> "video/webm"
+
+            // Imágenes
+            fileName.endsWith(".jpg") || fileName.endsWith(".jpeg") -> "image/jpeg"
+            fileName.endsWith(".png") -> "image/png"
+            fileName.endsWith(".gif") -> "image/gif"
+            fileName.endsWith(".webp") -> "image/webp"
+
+            // Por defecto (fallback)
+            else -> {
+                android.util.Log.w("PUBLICACION_REPO_DEBUG", "Tipo desconocido para: $fileName, usando application/octet-stream")
+                "application/octet-stream"
+            }
+        }
+    }
+
+    private fun getFileNameForUpload(file: File, index: Int): String {
+        val extension = file.name.substringAfterLast(".", "jpg")
+        val prefix = if (extension in listOf("mp4", "mov", "avi", "mkv", "3gp", "webm")) {
+            "video"
+        } else {
+            "imagen"
+        }
+        return "${prefix}_${index}.${extension}"
     }
 
     // OBTENER FEED DE PUBLICACIONES (ORIGINAL)
@@ -203,29 +245,35 @@ class PublicacionRepository(
     // ACTUALIZAR PUBLICACIÓN
     suspend fun actualizarPublicacion(
         idPublicacion: String,
-        titulo: String?,
+        titulo: String,
         descripcion: String?,
-        estatus: String?,
+        estatus: String,
         imagenes: List<File>?,
         token: String
     ): Result<PublicacionDetalle> {
+        android.util.Log.d("PUBLICACION_REPO_DEBUG", "=== actualizarPublicacion ===")
+        android.util.Log.d("PUBLICACION_REPO_DEBUG", "ID: $idPublicacion")
+        android.util.Log.d("PUBLICACION_REPO_DEBUG", "Archivos multimedia: ${imagenes?.size ?: 0}")
+
         return try {
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "=== actualizarPublicacion ===")
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "ID Publicación: $idPublicacion")
-
             val textMediaType = "text/plain".toMediaTypeOrNull()
-            val imageMediaType = "image/jpeg".toMediaTypeOrNull()
 
-            // Crear RequestBody para campos que no son null
-            val tituloBody = titulo?.let { RequestBody.create(textMediaType, it) }
+            val tituloBody = RequestBody.create(textMediaType, titulo)
+            val estatusBody = RequestBody.create(textMediaType, estatus)
             val descripcionBody = descripcion?.let { RequestBody.create(textMediaType, it) }
-            val estatusBody = estatus?.let { RequestBody.create(textMediaType, it) }
 
-            // Crear MultipartBody.Part para las imágenes (si existen)
+            // 🆕 Usar las mismas funciones helper para detectar tipos
             val archivosParts = imagenes?.mapIndexed { index, file ->
-                val requestFile = RequestBody.create(imageMediaType, file)
-                MultipartBody.Part.createFormData("archivos", "imagen_$index.jpg", requestFile)
+                val mediaType = getMediaTypeForFile(file)
+                val fileName = getFileNameForUpload(file, index)
+
+                android.util.Log.d("PUBLICACION_REPO_DEBUG", "Archivo $index: $fileName, tipo: $mediaType")
+
+                val requestFile = RequestBody.create(mediaType.toMediaTypeOrNull(), file)
+                MultipartBody.Part.createFormData("archivos", fileName, requestFile)
             }
+
+            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Llamando a API para actualizar...")
 
             val response = apiService.actualizarPublicacion(
                 idPublicacion = idPublicacion,
@@ -236,16 +284,18 @@ class PublicacionRepository(
                 authorization = "Bearer $token"
             )
 
+            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Response code: ${response.code()}")
+
             if (response.isSuccessful && response.body() != null) {
-                android.util.Log.d("PUBLICACION_REPO_DEBUG", "  Publicación actualizada exitosamente")
+                android.util.Log.d("PUBLICACION_REPO_DEBUG", "✅ Publicación actualizada")
                 Result.success(response.body()!!)
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Error: $errorMsg")
+                android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Error: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Exception: ${e.message}")
+            android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Exception: ${e.message}", e)
             Result.failure(e)
         }
     }
