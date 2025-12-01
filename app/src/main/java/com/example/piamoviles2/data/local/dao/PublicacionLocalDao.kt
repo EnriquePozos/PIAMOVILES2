@@ -1,0 +1,33 @@
+package com.example.piamoviles2.data.local.dao
+
+import androidx.room.*
+import com.example.piamoviles2.data.local.entities.PublicacionLocal
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface PublicacionLocalDao {
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertar(publicacion: PublicacionLocal): Long
+
+    @Update
+    suspend fun actualizar(publicacion: PublicacionLocal)
+
+    @Delete
+    suspend fun eliminar(publicacion: PublicacionLocal)
+
+    @Query("SELECT * FROM publicaciones_pendientes WHERE sincronizado = 0 ORDER BY fechaCreacion ASC")
+    suspend fun obtenerPendientes(): List<PublicacionLocal>
+
+    @Query("SELECT * FROM publicaciones_pendientes WHERE sincronizado = 0 ORDER BY fechaCreacion ASC")
+    fun observarPendientes(): Flow<List<PublicacionLocal>>
+
+    @Query("UPDATE publicaciones_pendientes SET sincronizado = 1, apiId = :apiId WHERE id = :localId")
+    suspend fun marcarComoSincronizado(localId: Long, apiId: String)
+
+    @Query("UPDATE publicaciones_pendientes SET intentosSincronizacion = intentosSincronizacion + 1 WHERE id = :localId")
+    suspend fun incrementarIntentos(localId: Long)
+
+    @Query("SELECT COUNT(*) FROM publicaciones_pendientes WHERE sincronizado = 0")
+    suspend fun contarPendientes(): Int
+}
