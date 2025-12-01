@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <!-- ImageView para imágenes -->
+    <ImageView
+        android:id="@+id/ivMedia"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:contentDescription="Multimedia" />
+
+    <!-- VideoView para videos -->
+    <VideoView
+        android:id="@+id/vvMedia"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
+    <!-- Overlay para videos con botón de play -->
+    <FrameLayout
+        android:id="@+id/layoutVideoOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#40000000"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true">
+
+        <ImageButton
+            android:id="@+id/btnPlayVideo"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:layout_gravity="center"
+            android:background="@drawable/circle_background"
+            android:backgroundTint="#80000000"
+            android:src="@android:drawable/ic_media_play"
+            android:contentDescription="Reproducir video"
+            app:tint="#FFFFFF" />
+
+    </FrameLayout>
+
+    <!-- Badge de tipo multimedia -->
+    <TextView
+        android:id="@+id/tvMediaType"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_margin="12dp"
+        android:background="@drawable/circle_background"
+        android:backgroundTint="#4A7C92"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="4dp"
+        android:text="📷 Imagen"
+        android:textColor="#FFFFFF"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
+</FrameLayout>
