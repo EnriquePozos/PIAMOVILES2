@@ -19,6 +19,7 @@ import java.io.FileOutputStream
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
+import com.example.piamoviles2.data.models.MultimediaResponse
 import java.io.InputStream
 import java.net.URL
 
@@ -323,7 +324,7 @@ class CreatePostActivity : AppCompatActivity() {
 
                         // Cargar imágenes si existen
                         publicacion.multimedia?.let { multimedia ->
-                            loadImagesFromUrls(multimedia.map { it.url })
+                            loadMultimediaFromApi(multimedia)
                         }
 
                         // Actualizar botones para modo edición
@@ -347,41 +348,142 @@ class CreatePostActivity : AppCompatActivity() {
         }
     }
 
+    private fun loadMultimediaFromApi(multimediaList: List<MultimediaResponse>) {
+        android.util.Log.d(TAG, "=== loadMultimediaFromApi ===")
+        android.util.Log.d(TAG, "Total items: ${multimediaList.size}")
+
+        multimediaList.forEach { media ->
+            android.util.Log.d(TAG, "Procesando: tipo=${media.tipo}, url=${media.url}")
+
+            when (media.tipo.lowercase()) {
+                "imagen" -> loadImageFromUrl(media.url)
+                "video" -> loadVideoFromUrl(media.url)
+                else -> {
+                    android.util.Log.w(TAG, "Tipo desconocido: ${media.tipo}")
+                    loadImageFromUrl(media.url) // Fallback a imagen
+                }
+            }
+        }
+    }
+
     // ============================================
-    // 🆕 CARGAR IMÁGENES DESDE URLs
+// CARGAR IMAGEN DESDE URL
+// ============================================
+    private fun loadImageFromUrl(url: String) {
+        android.util.Log.d(TAG, "Cargando IMAGEN desde: $url")
+
+        Glide.with(this)
+            .asBitmap()
+            .load(url)
+            .into(object : CustomTarget<Bitmap>() {
+                override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                    android.util.Log.d(TAG, "✅ Imagen cargada exitosamente")
+
+                    // Crear item multimedia
+                    val item = MultimediaItem.crearImagen(resource)
+
+                    // Convertir a archivo
+                    convertBitmapToFileForItem(resource, item)
+
+                    // Agregar al adapter
+                    multimediaAdapter.addItem(item)
+                    updateEmptyState()
+                }
+
+                override fun onLoadCleared(placeholder: android.graphics.drawable.Drawable?) {
+                    // No hacer nada
+                }
+
+                override fun onLoadFailed(errorDrawable: android.graphics.drawable.Drawable?) {
+                    android.util.Log.e(TAG, "❌ Error al cargar imagen desde $url")
+                }
+            })
+    }
+
     // ============================================
-    private fun loadImagesFromUrls(imageUrls: List<String>) {
-        android.util.Log.d(TAG, "=== Cargando ${imageUrls.size} imágenes desde URLs ===")
+// 🆕 CARGAR VIDEO DESDE URL
+// ============================================
+    private fun loadVideoFromUrl(url: String) {
+        android.util.Log.d(TAG, "Cargando VIDEO desde: $url")
 
-        imageUrls.forEach { url ->
-            android.util.Log.d(TAG, "Cargando imagen desde: $url")
+        // Generar thumbnail del video usando Glide
+        Glide.with(this)
+            .asBitmap()
+            .load(url)
+            .into(object : CustomTarget<Bitmap>() {
+                override fun onResourceReady(thumbnail: Bitmap, transition: Transition<in Bitmap>?) {
+                    android.util.Log.d(TAG, "✅ Thumbnail de video generado")
 
-            Glide.with(this)
-                .asBitmap()
-                .load(url)
-                .into(object : CustomTarget<Bitmap>() {
-                    override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
-                        android.util.Log.d(TAG, "✅ Imagen cargada exitosamente desde URL")
+                    // Crear item multimedia de tipo VIDEO
+                    val item = MultimediaItem.crearVideo(
+                        uri = android.net.Uri.parse(url),
+                        thumbnail = thumbnail
+                    )
 
-                        // Crear item multimedia
-                        val item = MultimediaItem.crearImagen(resource)
+                    // Descargar el video a un archivo temporal
+                    downloadVideoToFile(url, item)
+                }
 
-                        // Convertir a archivo
-                        convertBitmapToFileForItem(resource, item)
+                override fun onLoadCleared(placeholder: android.graphics.drawable.Drawable?) {
+                    // No hacer nada
+                }
 
-                        // Agregar al adapter
-                        multimediaAdapter.addItem(item)
-                        updateEmptyState()
+                override fun onLoadFailed(errorDrawable: android.graphics.drawable.Drawable?) {
+                    android.util.Log.e(TAG, "❌ Error al cargar thumbnail de video desde $url")
+
+                    // Crear item sin thumbnail
+                    val item = MultimediaItem.crearVideo(
+                        uri = android.net.Uri.parse(url),
+                        thumbnail = null
+                    )
+
+                    downloadVideoToFile(url, item)
+                }
+            })
+    }
+
+    // ============================================
+// 🆕 DESCARGAR VIDEO A ARCHIVO TEMPORAL
+// ============================================
+    private fun downloadVideoToFile(url: String, item: MultimediaItem) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                android.util.Log.d(TAG, "Descargando video desde: $url")
+
+                // Crear archivo temporal
+                val tempFile = File(cacheDir, "video_${item.id}.mp4")
+
+                // Descargar video
+                val connection = java.net.URL(url).openConnection()
+                connection.connect()
+
+                connection.getInputStream().use { input ->
+                    FileOutputStream(tempFile).use { output ->
+                        input.copyTo(output)
                     }
+                }
 
-                    override fun onLoadCleared(placeholder: android.graphics.drawable.Drawable?) {
-                        // No hacer nada
-                    }
+                android.util.Log.d(TAG, "✅ Video descargado: ${tempFile.name}, tamaño: ${tempFile.length()} bytes")
 
-                    override fun onLoadFailed(errorDrawable: android.graphics.drawable.Drawable?) {
-                        android.util.Log.e(TAG, "❌ Error al cargar imagen desde $url")
-                    }
-                })
+                // Asignar archivo al item
+                item.file = tempFile
+
+                // Agregar al adapter en el hilo principal
+                withContext(Dispatchers.Main) {
+                    multimediaAdapter.addItem(item)
+                    updateEmptyState()
+                }
+
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "❌ Error al descargar video", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@CreatePostActivity,
+                        "Error al cargar video desde URL",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
         }
     }
 
