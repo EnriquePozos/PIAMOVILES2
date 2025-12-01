@@ -26,6 +26,7 @@ class CreatePostActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityCreatePostBinding
     private lateinit var imagePickerHelper: ImagePickerHelper
+    private lateinit var videoPickerHelper: VideoPickerHelper
 
     // Control de imágenes
     private val multimediaItems = mutableListOf<MultimediaItem>()
@@ -62,6 +63,7 @@ class CreatePostActivity : AppCompatActivity() {
         initializeImages()
         setupHeader()
         setupImagePicker()
+        setupVideoPicker()
         setupMultimediaRecyclerView()
         setupClickListeners()
         setupBackPressedHandler()
@@ -169,6 +171,16 @@ class CreatePostActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupVideoPicker() {
+        videoPickerHelper = VideoPickerHelper(this) { videoResult ->
+            if (videoResult != null) {
+                addVideoToMultimedia(videoResult)
+            } else {
+                Toast.makeText(this, "Error al cargar el video", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     private fun setupClickListeners() {
         // 🆕 Botón para agregar multimedia
         binding.btnAddMultimedia.setOnClickListener {
@@ -198,8 +210,16 @@ class CreatePostActivity : AppCompatActivity() {
     }
 
     private fun openVideoPicker() {
-        Toast.makeText(this, "Funcionalidad de video próximamente", Toast.LENGTH_SHORT).show()
-        // TODO: Implementar video picker similar a ImagePickerHelper
+        // Mostrar opciones: Cámara o Galería
+        AlertDialog.Builder(this)
+            .setTitle("Seleccionar video")
+            .setItems(arrayOf("📹 Grabar video", "🎬 Galería de videos")) { _, which ->
+                when (which) {
+                    0 -> videoPickerHelper.openCamera()
+                    1 -> videoPickerHelper.openGallery()
+                }
+            }
+            .show()
     }
 
     private fun setupBackPressedHandler() {
@@ -400,6 +420,40 @@ class CreatePostActivity : AppCompatActivity() {
 
         Toast.makeText(this, "Imagen agregada (${multimediaItems.size}/$MAX_MULTIMEDIA)", Toast.LENGTH_SHORT).show()
         android.util.Log.d(TAG, "✅ Imagen agregada - Total: ${multimediaItems.size}")
+    }
+
+    private fun addVideoToMultimedia(videoResult: VideoPickerHelper.VideoResult) {
+        try {
+            android.util.Log.d(TAG, "=== Agregando video a multimedia ===")
+
+            // Crear item multimedia de tipo VIDEO
+            val item = MultimediaItem.crearVideo(
+                uri = videoResult.uri,
+                thumbnail = videoResult.thumbnail
+            )
+
+            // Asignar el archivo del video
+            item.file = videoResult.file
+
+            // Agregar al adapter
+            multimediaAdapter.addItem(item)
+            updateEmptyState()
+
+            val durationSec = videoResult.durationMs / 1000
+            val sizeMB = String.format("%.1f", videoResult.sizeBytes / (1024.0 * 1024.0))
+
+            Toast.makeText(
+                this,
+                "Video agregado: ${durationSec}s, ${sizeMB}MB (${multimediaItems.size}/$MAX_MULTIMEDIA)",
+                Toast.LENGTH_LONG
+            ).show()
+
+            android.util.Log.d(TAG, "✅ Video agregado - Total: ${multimediaItems.size}")
+
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "❌ Error al agregar video", e)
+            Toast.makeText(this, "Error al procesar video: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
     }
 
     // ============================================
