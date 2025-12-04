@@ -12,12 +12,16 @@ data class PublicacionLocal(
     val id: Long = 0,
 
     val titulo: String,
-    val descripcion: String,
+    val descripcion: String?,
     val estatus: String, // "borrador" o "publicada"
     val idAutor: String,
 
     // Multimedia como JSON string (lista de rutas locales)
     val multimediaJson: String? = null,
+
+    //Token para sincronización
+    val token: String = "",
+
 
     // Control de sincronización
     val sincronizado: Boolean = false,
