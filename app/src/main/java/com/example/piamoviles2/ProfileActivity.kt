@@ -12,6 +12,9 @@ import com.example.piamoviles2.utils.ImageUtils
 import com.example.piamoviles2.data.repositories.PublicacionRepository
 import kotlinx.coroutines.*
 
+// Manejar si esta online o no
+import com.example.piamoviles2.utils.NetworkMonitor
+
 class ProfileActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityProfileBinding
@@ -19,6 +22,8 @@ class ProfileActivity : AppCompatActivity() {
     private lateinit var sessionManager: SessionManager
 
     private lateinit var publicacionRepository: PublicacionRepository
+
+    private lateinit var networkMonitor: NetworkMonitor
 
     private var userPosts = mutableListOf<Post>()
 
@@ -35,6 +40,8 @@ class ProfileActivity : AppCompatActivity() {
         sessionManager = SessionManager(this)
         // CAMBIO: Agregar context para habilitar funcionalidad offline
         publicacionRepository = PublicacionRepository(context = this)
+        networkMonitor = NetworkMonitor(this)
+
 
         setupHeader()
         setupUserInfo()
@@ -87,15 +94,45 @@ class ProfileActivity : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
-        // 🚫 INHABILITAR: Modificar perfil
-        binding.btnModifyProfile.setOnClickListener {
-            Toast.makeText(this, "Funcionalidad no disponible en modo offline", Toast.LENGTH_SHORT).show()
-            android.util.Log.d(TAG, "Botón Modificar Perfil deshabilitado")
-        }
 
-        // CAMBIO: Deshabilitar visualmente el botón
-        binding.btnModifyProfile.alpha = 0.5f
-        binding.btnModifyProfile.isEnabled = false
+        if (!networkMonitor.isOnline()) {
+            // 🚫 MODO OFFLINE - Deshabilitar funciones que requieren internet
+
+            binding.btnModifyProfile.setOnClickListener {
+                Toast.makeText(this, "Funcionalidad no disponible en modo offline", Toast.LENGTH_SHORT).show()
+                android.util.Log.d(TAG, "Botón Modificar Perfil deshabilitado - Modo offline")
+            }
+            binding.btnModifyProfile.alpha = 0.5f
+            binding.btnModifyProfile.isEnabled = false
+
+            binding.btnViewFavorites.setOnClickListener {
+                Toast.makeText(this, "Funcionalidad no disponible en modo offline", Toast.LENGTH_SHORT).show()
+                android.util.Log.d(TAG, "Botón Ver Favoritos deshabilitado - Modo offline")
+            }
+            binding.btnViewFavorites.alpha = 0.5f
+            binding.btnViewFavorites.isEnabled = false
+
+            android.util.Log.d(TAG, "Modo OFFLINE - Botones de internet deshabilitados")
+
+        } else {
+            // ✅ MODO ONLINE - Habilitar todas las funciones
+
+            binding.btnModifyProfile.setOnClickListener {
+                val intent = Intent(this, EditProfileActivity::class.java)
+                startActivity(intent)
+            }
+            binding.btnModifyProfile.alpha = 1.0f
+            binding.btnModifyProfile.isEnabled = true
+
+            binding.btnViewFavorites.setOnClickListener {
+                val intent = Intent(this, FavoritesActivity::class.java)
+                startActivity(intent)
+            }
+            binding.btnViewFavorites.alpha = 1.0f
+            binding.btnViewFavorites.isEnabled = true
+
+            android.util.Log.d(TAG, "Modo ONLINE - Todos los botones habilitados")
+        }
 
         // ✅ MANTENER HABILITADO: Agregar receta
         binding.btnAddRecipe.setOnClickListener {
@@ -109,15 +146,6 @@ class ProfileActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-        // 🚫 INHABILITAR: Ver favoritos
-        binding.btnViewFavorites.setOnClickListener {
-            Toast.makeText(this, "Funcionalidad no disponible en modo offline", Toast.LENGTH_SHORT).show()
-            android.util.Log.d(TAG, "Botón Ver Favoritos deshabilitado")
-        }
-
-        // CAMBIO: Deshabilitar visualmente el botón
-        binding.btnViewFavorites.alpha = 0.5f
-        binding.btnViewFavorites.isEnabled = false
     }
 
     // CARGAR PUBLICACIONES - AHORA CON SOPORTE OFFLINE/ONLINE AUTOMÁTICO
