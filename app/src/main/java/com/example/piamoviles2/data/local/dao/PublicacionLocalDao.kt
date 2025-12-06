@@ -30,4 +30,22 @@ interface PublicacionLocalDao {
 
     @Query("SELECT COUNT(*) FROM publicaciones_pendientes WHERE sincronizado = 0")
     suspend fun contarPendientes(): Int
+
+    // ============================================
+    // NUEVO: MÉTODOS PARA FEED OFFLINE
+    // ============================================
+
+    /**
+     * Obtiene todas las publicaciones locales para mostrar en el feed cuando está offline
+     * Ordenadas por fecha de creación descendente (más recientes primero)
+     */
+    @Query("SELECT * FROM publicaciones_pendientes ORDER BY fechaCreacion DESC")
+    suspend fun obtenerPublicacionesParaFeed(): List<PublicacionLocal>
+
+    /**
+     * Observa cambios en todas las publicaciones locales para el feed
+     * Útil para actualizaciones en tiempo real
+     */
+    @Query("SELECT * FROM publicaciones_pendientes ORDER BY fechaCreacion DESC")
+    fun observarPublicacionesParaFeed(): Flow<List<PublicacionLocal>>
 }

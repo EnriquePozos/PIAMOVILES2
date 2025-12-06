@@ -111,4 +111,56 @@ object ImageUtils {
                         imageUrl.startsWith("https://") ||
                         imageUrl.startsWith("res.cloudinary.com"))
     }
+
+    /**
+     * NUEVO: Carga imagen desde archivo local (modo offline)
+     * Maneja archivos del sistema de archivos con prefijo "file://"
+     */
+    fun loadLocalImage(
+        context: Context,
+        localPath: String,
+        imageView: ImageView,
+        showPlaceholder: Boolean = true
+    ) {
+
+
+        try {
+            // Remover prefijo "file://" si existe para obtener ruta limpia
+            val cleanPath = localPath.removePrefix("file://")
+            val file = java.io.File(cleanPath)
+
+
+
+            val glideRequest = Glide.with(context)
+                .load(file) // Glide puede cargar directamente desde File
+                .diskCacheStrategy(DiskCacheStrategy.NONE) // No cachear archivos locales
+                .centerCrop() // Para que se vea bien en las cards
+
+            if (showPlaceholder) {
+                glideRequest
+                    .placeholder(R.mipmap.ic_launcher) // Mientras carga
+                    .error(R.mipmap.ic_launcher) // Si hay error al cargar archivo
+            }
+
+            glideRequest.into(imageView)
+
+
+
+        } catch (e: Exception) {
+
+
+            // Fallback en caso de error
+            if (showPlaceholder) {
+                imageView.setImageResource(R.mipmap.ic_launcher)
+            }
+        }
+    }
+
+    /**
+     * NUEVO: Verificar si es una ruta de archivo local
+     */
+    fun isLocalImagePath(imagePath: String?): Boolean {
+        return !imagePath.isNullOrEmpty() &&
+                (imagePath.startsWith("file://") || imagePath.startsWith("/"))
+    }
 }

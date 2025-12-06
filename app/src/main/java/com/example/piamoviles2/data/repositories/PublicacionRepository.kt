@@ -225,8 +225,6 @@ class PublicacionRepository(
         }
     }
 
-    // MÉTODO ADICIONAL: Limpiar archivos sincronizados para ahorrar espacio
-
     // MÉTODO PARA SINCRONIZAR PUBLICACIONES PENDIENTES - CON LOGS DE DEBUG
     suspend fun sincronizarPublicacionesPendientes(token: String): Result<Int> {
         return try {
@@ -1079,4 +1077,112 @@ class PublicacionRepository(
             "Error al procesar respuesta: ${response.code()}"
         }
     }
+
+    /**
+     * Obtener feed de publicaciones desde SQLite (modo offline)
+     * Convierte PublicacionLocal a Post para mantener compatibilidad
+     */
+    suspend fun obtenerFeedOfflineConvertido(currentUserId: String): Result<List<Post>> {
+        return try {
+            Log.d(TAG, "=== obtenerFeedOfflineConvertido ===")
+
+            val db = database ?: return Result.failure(Exception("Base de datos no disponible"))
+            val publicacionesLocales = db.publicacionLocalDao().obtenerPublicacionesParaFeed()
+
+            Log.d(TAG, "Publicaciones locales encontradas: ${publicacionesLocales.size}")
+
+            val posts = publicacionesLocales.mapIndexed { index, publicacionLocal ->
+                // Convertir PublicacionLocal a Post
+                Post(
+                    id = publicacionLocal.id.toInt(), // Usar el ID local
+                    apiId = publicacionLocal.apiId, // Puede ser null si no se ha sincronizado
+                    title = publicacionLocal.titulo,
+                    description = publicacionLocal.descripcion ?: "",
+                    imageUrl = extraerPrimeraImagenLocal(publicacionLocal.multimediaJson) ?: "default_recipe",
+                    author = "Usuario", // En offline no tenemos info del autor completa
+                    createdAt = formatearFechaLocal(publicacionLocal.fechaCreacion),
+                    isOwner = publicacionLocal.idAutor == currentUserId,
+                    isFavorite = false, // En offline no manejamos favoritos aún
+                    isDraft = publicacionLocal.estatus == "borrador",
+                    likesCount = 0, // En offline no tenemos conteos
+                    commentsCount = 0 // En offline no tenemos conteos
+                )
+            }
+
+            Log.d(TAG, "Convertidas ${posts.size} publicaciones offline a Post")
+            Result.success(posts)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al obtener feed offline: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Método principal para obtener feed según conectividad
+     * ONLINE = API, OFFLINE = SQLite
+     */
+    suspend fun obtenerFeedSegunConectividad(token: String, currentUserId: String): Result<List<Post>> {
+        val hasInternet = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            networkMonitor?.isOnline() ?: true
+        } else {
+            true // Para versiones anteriores, asumir conexión
+        }
+
+        Log.d(TAG, "=== obtenerFeedSegunConectividad ===")
+        Log.d(TAG, "Estado de conectividad: ${if (hasInternet) "ONLINE" else "OFFLINE"}")
+
+        return if (hasInternet) {
+            // Modo online - usar API (método existente)
+            obtenerFeedConvertido(token, currentUserId)
+        } else {
+            // Modo offline - usar SQLite
+            obtenerFeedOfflineConvertido(currentUserId)
+        }
+    }
+
+    /**
+     * Extraer la primera imagen del JSON de multimedia para preview
+     */
+    private fun extraerPrimeraImagenLocal(multimediaJson: String?): String? {
+        return try {
+            if (multimediaJson.isNullOrEmpty()) {
+                Log.d(TAG, "No hay multimedia JSON")
+                return null
+            }
+
+            val jsonArray = JSONArray(multimediaJson)
+            if (jsonArray.length() > 0) {
+                val primerItem = jsonArray.getJSONObject(0)
+                val ruta = primerItem.getString("ruta")
+                val tipo = primerItem.optString("tipo", "")
+
+                Log.d(TAG, "Primera imagen encontrada: $ruta")
+
+                // Verificar si es imagen y si el archivo existe
+                if (tipo.startsWith("image/") && File(ruta).exists()) {
+                    return "file://$ruta" // Prefijo para cargar desde archivo local
+                }
+            }
+            null
+        } catch (e: Exception) {
+            Log.w(TAG, "Error al extraer primera imagen: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Formatear timestamp local a fecha legible
+     */
+    private fun formatearFechaLocal(timestamp: Long): String {
+        return try {
+            val fecha = java.util.Date(timestamp)
+            val formato = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault())
+            formato.format(fecha)
+        } catch (e: Exception) {
+            Log.w(TAG, "Error al formatear fecha local: $timestamp")
+            "Fecha no disponible"
+        }
+    }
+
 }
