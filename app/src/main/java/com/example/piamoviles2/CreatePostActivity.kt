@@ -131,7 +131,7 @@ class CreatePostActivity : AppCompatActivity() {
     // NUEVOS MÉTODOS DE SETUP
     // ============================================
     private fun setupApiComponents() {
-        publicacionRepository = PublicacionRepository()
+        publicacionRepository = PublicacionRepository(this)
         sessionManager = SessionManager(this)
     }
 

@@ -1,5 +1,8 @@
 package com.example.piamoviles2.data.repositories
 
+import android.content.Context
+import android.util.Log
+import android.os.Build
 import com.example.piamoviles2.data.api.ApiService
 import com.example.piamoviles2.data.models.*
 import com.example.piamoviles2.data.network.NetworkConfig
@@ -10,10 +13,32 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import java.io.File
 
+// NUEVOS IMPORTS PARA MODO OFFLINE
+import com.example.piamoviles2.data.local.AppDatabase
+import com.example.piamoviles2.data.local.entities.PublicacionLocal
+import com.example.piamoviles2.data.local.dao.*
+import com.example.piamoviles2.utils.NetworkMonitor
+import org.json.JSONArray
+
 class PublicacionRepository(
+    private val context: Context? = null, // NUEVO: Context para acceder a Room
     private val apiService: ApiService = NetworkConfig.apiService
 ) {
-    // CREAR PUBLICACIÓN - FORMDATA CON ARCHIVOS
+
+    // COMPONENTES PARA MODO OFFLINE
+    private val database: AppDatabase? by lazy {
+        context?.let { AppDatabase.getDatabase(it) }
+    }
+
+    private val networkMonitor: NetworkMonitor? by lazy {
+        context?.let { NetworkMonitor(it) }
+    }
+
+    companion object {
+        private const val TAG = "PUBLICACION_REPO_DEBUG"
+    }
+
+    // CREAR PUBLICACIÓN - FORMDATA CON ARCHIVOS - AHORA CON SOPORTE OFFLINE
     suspend fun crearPublicacion(
         titulo: String,
         descripcion: String?,
@@ -22,59 +47,199 @@ class PublicacionRepository(
         imagenes: List<File>?,
         token: String
     ): Result<PublicacionDetalle> {
-        android.util.Log.d("PUBLICACION_REPO_DEBUG", "=== crearPublicacion ===")
-        android.util.Log.d("PUBLICACION_REPO_DEBUG", "Título: $titulo")
-        android.util.Log.d("PUBLICACION_REPO_DEBUG", "Estatus: $estatus")
-        android.util.Log.d("PUBLICACION_REPO_DEBUG", "ID Autor: $idAutor")
-        android.util.Log.d("PUBLICACION_REPO_DEBUG", "Archivos multimedia: ${imagenes?.size ?: 0}")
+        Log.d(TAG, "=== crearPublicacion ===")
+        Log.d(TAG, "Título: $titulo")
+        Log.d(TAG, "Estatus: $estatus")
+        Log.d(TAG, "ID Autor: $idAutor")
+        Log.d(TAG, "Archivos multimedia: ${imagenes?.size ?: 0}")
 
-        return try {
-            val textMediaType = "text/plain".toMediaTypeOrNull()
+        // VERIFICAR CONECTIVIDAD
+        val hasInternet = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            networkMonitor?.isOnline() ?: true
+        } else {
+            true // Para versiones anteriores, asumir conexión
+        }
 
-            // Crear RequestBody para campos de texto
-            val tituloBody = RequestBody.create(textMediaType, titulo)
-            val estatusBody = RequestBody.create(textMediaType, estatus)
-            val idAutorBody = RequestBody.create(textMediaType, idAutor)
-            val descripcionBody = descripcion?.let { RequestBody.create(textMediaType, it) }
+        Log.d(TAG, "Conectividad a internet: $hasInternet")
 
-            // 🆕 Crear MultipartBody.Part para IMÁGENES Y VIDEOS
-            val archivosParts = imagenes?.mapIndexed { index, file ->
-                // ✅ Detectar el tipo de archivo correctamente
-                val mediaType = getMediaTypeForFile(file)
-                val fileName = getFileNameForUpload(file, index)
+        return if (hasInternet) {
+            // LÓGICA ORIGINAL - Mantener nombre del método original
+            try {
+                val textMediaType = "text/plain".toMediaTypeOrNull()
 
-                android.util.Log.d("PUBLICACION_REPO_DEBUG", "Archivo $index: ${file.name}")
-                android.util.Log.d("PUBLICACION_REPO_DEBUG", "Media Type: $mediaType")
-                android.util.Log.d("PUBLICACION_REPO_DEBUG", "Tamaño: ${file.length()} bytes")
+                // Crear RequestBody para campos de texto
+                val tituloBody = RequestBody.create(textMediaType, titulo)
+                val estatusBody = RequestBody.create(textMediaType, estatus)
+                val idAutorBody = RequestBody.create(textMediaType, idAutor)
+                val descripcionBody = descripcion?.let { RequestBody.create(textMediaType, it) }
 
-                val requestFile = RequestBody.create(mediaType.toMediaTypeOrNull(), file)
-                MultipartBody.Part.createFormData("archivos", fileName, requestFile)
+                // Crear MultipartBody.Part para IMÁGENES Y VIDEOS
+                val archivosParts = imagenes?.mapIndexed { index, file ->
+                    // Detectar el tipo de archivo correctamente
+                    val mediaType = getMediaTypeForFile(file)
+                    val fileName = getFileNameForUpload(file, index)
+
+                    Log.d(TAG, "Archivo $index: ${file.name}")
+                    Log.d(TAG, "Media Type: $mediaType")
+                    Log.d(TAG, "Tamaño: ${file.length()} bytes")
+
+                    val requestFile = RequestBody.create(mediaType.toMediaTypeOrNull(), file)
+                    MultipartBody.Part.createFormData("archivos", fileName, requestFile)
+                }
+
+                Log.d(TAG, "RequestBodies creados, llamando a API...")
+
+                val response = apiService.crearPublicacion(
+                    titulo = tituloBody,
+                    descripcion = descripcionBody,
+                    estatus = estatusBody,
+                    idAutor = idAutorBody,
+                    archivos = archivosParts,
+                    authorization = "Bearer $token"
+                )
+
+                Log.d(TAG, "Response code: ${response.code()}")
+                Log.d(TAG, "Response successful: ${response.isSuccessful}")
+
+                if (response.isSuccessful && response.body() != null) {
+                    Log.d(TAG, "Publicación creada exitosamente")
+                    Result.success(response.body()!!)
+                } else {
+                    val errorMsg = parseErrorMessage(response)
+                    Log.e(TAG, "Error en respuesta: $errorMsg")
+                    Result.failure(Exception(errorMsg))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception: ${e.message}", e)
+                Result.failure(e)
             }
+        } else {
+            // MODO OFFLINE - Guardar en SQLite
+            crearPublicacionOffline(titulo, descripcion, estatus, idAutor, imagenes, token)
+        }
+    }
 
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "RequestBodies creados, llamando a API...")
+    // MÉTODO OFFLINE - Guardar en SQLite cuando no hay conexión
+    private suspend fun crearPublicacionOffline(
+        titulo: String,
+        descripcion: String?,
+        estatus: String,
+        idAutor: String,
+        imagenes: List<File>?,
+        token: String
+    ): Result<PublicacionDetalle> {
+        return try {
+            Log.d(TAG, "MODO OFFLINE - Guardando en SQLite")
 
-            val response = apiService.crearPublicacion(
-                titulo = tituloBody,
-                descripcion = descripcionBody,
-                estatus = estatusBody,
-                idAutor = idAutorBody,
-                archivos = archivosParts,
-                authorization = "Bearer $token"
+            val db = database ?: return Result.failure(Exception("Base de datos no disponible"))
+
+            // Convertir archivos a JSON para almacenar rutas
+            val multimediaJson = imagenes?.map { file ->
+                mapOf(
+                    "tipo" to getMediaTypeForFile(file),
+                    "ruta" to file.absolutePath,
+                    "nombre" to file.name
+                )
+            }?.let { JSONArray(it).toString() }
+
+            // Crear entidad local
+            val publicacionLocal = PublicacionLocal(
+                titulo = titulo,
+                descripcion = descripcion,
+                estatus = estatus,
+                idAutor = idAutor,
+                multimediaJson = multimediaJson,
+                token = token, // Guardar token para uso posterior en sincronización
+                sincronizado = false,
+                fechaCreacion = System.currentTimeMillis()
             )
 
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Response code: ${response.code()}")
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Response successful: ${response.isSuccessful}")
+            // Guardar en SQLite
+            val id = db.publicacionLocalDao().insertar(publicacionLocal)
 
-            if (response.isSuccessful && response.body() != null) {
-                android.util.Log.d("PUBLICACION_REPO_DEBUG", "✅ Publicación creada exitosamente")
-                Result.success(response.body()!!)
-            } else {
-                val errorMsg = parseErrorMessage(response)
-                android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Error en respuesta: $errorMsg")
-                Result.failure(Exception(errorMsg))
-            }
+            Log.d(TAG, "Publicación guardada offline con ID: $id")
+
+            // Crear respuesta simulada para mantener compatibilidad
+            val fechaActual = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
+
+            val publicacionDetalle = PublicacionDetalle(
+                id = "offline_$id",
+                titulo = titulo,
+                descripcion = descripcion ?: "",
+                fechaCreacion = fechaActual,
+                fechaPublicacion = fechaActual,
+                fechaModificacion = null,
+                estatus = estatus,
+                idAutor = idAutor,
+                autorAlias = "Usuario",
+                autorFoto = null,
+                totalComentarios = 0,
+                totalReacciones = 0,
+                multimedia = emptyList()
+            )
+
+            Result.success(publicacionDetalle)
+
         } catch (e: Exception) {
-            android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Exception: ${e.message}", e)
+            Log.e(TAG, "Error al guardar offline: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    // MÉTODO PARA SINCRONIZAR PUBLICACIONES PENDIENTES
+    suspend fun sincronizarPublicacionesPendientes(token: String): Result<Int> {
+        return try {
+            Log.d(TAG, "=== sincronizarPublicacionesPendientes ===")
+
+            val db = database ?: return Result.failure(Exception("Base de datos no disponible"))
+            val publicacionesPendientes = db.publicacionLocalDao().obtenerPendientes()
+
+            Log.d(TAG, "Publicaciones pendientes: ${publicacionesPendientes.size}")
+
+            var sincronizadas = 0
+
+            for (publicacion in publicacionesPendientes) {
+                try {
+                    // Intentar crear en API
+                    val imagenes = publicacion.multimediaJson?.let { json ->
+                        val jsonArray = JSONArray(json)
+                        (0 until jsonArray.length()).map { i ->
+                            val obj = jsonArray.getJSONObject(i)
+                            File(obj.getString("ruta"))
+                        }.filter { it.exists() }
+                    }
+
+                    val result = crearPublicacion(
+                        titulo = publicacion.titulo,
+                        descripcion = publicacion.descripcion,
+                        estatus = publicacion.estatus,
+                        idAutor = publicacion.idAutor,
+                        imagenes = imagenes,
+                        token = token
+                    )
+
+                    result.fold(
+                        onSuccess = { apiResponse ->
+                            // Marcar como sincronizada
+                            db.publicacionLocalDao().marcarComoSincronizado(publicacion.id, apiResponse.id)
+                            sincronizadas++
+                            Log.d(TAG, "Publicación ${publicacion.id} sincronizada exitosamente")
+                        },
+                        onFailure = { error ->
+                            Log.e(TAG, "Error al sincronizar publicación ${publicacion.id}: ${error.message}")
+                        }
+                    )
+
+                } catch (e: Exception) {
+                    Log.e(TAG, "Exception al sincronizar publicación ${publicacion.id}: ${e.message}")
+                }
+            }
+
+            Log.d(TAG, "Sincronización completa: $sincronizadas/${publicacionesPendientes.size}")
+            Result.success(sincronizadas)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error en sincronización: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -99,7 +264,7 @@ class PublicacionRepository(
 
             // Por defecto (fallback)
             else -> {
-                android.util.Log.w("PUBLICACION_REPO_DEBUG", "Tipo desconocido para: $fileName, usando application/octet-stream")
+                Log.w(TAG, "Tipo desconocido para: $fileName, usando application/octet-stream")
                 "application/octet-stream"
             }
         }
@@ -118,25 +283,25 @@ class PublicacionRepository(
     // OBTENER FEED DE PUBLICACIONES (ORIGINAL)
     suspend fun obtenerFeedPublicaciones(token: String): Result<List<PublicacionListFeed>> {
         return try {
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "=== obtenerFeedPublicaciones ===")
+            Log.d(TAG, "=== obtenerFeedPublicaciones ===")
 
             val authHeader = "Bearer $token"
             val response = apiService.obtenerFeedPublicaciones(authHeader)
 
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Response code: ${response.code()}")
+            Log.d(TAG, "Response code: ${response.code()}")
 
             if (response.isSuccessful) {
                 response.body()?.let { feed ->
-                    android.util.Log.d("PUBLICACION_REPO_DEBUG", " Feed obtenido: ${feed.size} publicaciones")
+                    Log.d(TAG, " Feed obtenido: ${feed.size} publicaciones")
                     Result.success(feed)
                 } ?: Result.failure(Exception("Respuesta vacía del servidor"))
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Error al obtener feed: $errorMsg")
+                Log.e(TAG, "  Error al obtener feed: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Exception: ${e.message}")
+            Log.e(TAG, "  Exception: ${e.message}")
             Result.failure(e)
         }
     }
@@ -144,17 +309,17 @@ class PublicacionRepository(
     // OBTENER FEED CON CONVERSIÓN A POST
     suspend fun obtenerFeedConvertido(token: String, currentUserId: String): Result<List<Post>> {
         return try {
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "=== obtenerFeedConvertido ===")
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Current User ID: $currentUserId")
+            Log.d(TAG, "=== obtenerFeedConvertido ===")
+            Log.d(TAG, "Current User ID: $currentUserId")
 
             val authHeader = "Bearer $token"
             val response = apiService.obtenerFeedPublicaciones(authHeader)
 
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Response code: ${response.code()}")
+            Log.d(TAG, "Response code: ${response.code()}")
 
             if (response.isSuccessful) {
                 response.body()?.let { feedList ->
-                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "  Feed obtenido: ${feedList.size} publicaciones")
+                    Log.d(TAG, "  Feed obtenido: ${feedList.size} publicaciones")
 
                     // Convertir PublicacionListFeed a Post
                     val posts = feedList.mapIndexed { index, publicacion ->
@@ -174,40 +339,40 @@ class PublicacionRepository(
                         )
                     }
 
-                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "  Convertido a ${posts.size} Posts con API IDs")
+                    Log.d(TAG, "  Convertido a ${posts.size} Posts con API IDs")
                     Result.success(posts)
                 } ?: Result.failure(Exception("Respuesta vacía del servidor"))
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Error al obtener feed: $errorMsg")
+                Log.e(TAG, "  Error al obtener feed: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Exception: ${e.message}")
+            Log.e(TAG, "  Exception: ${e.message}")
             Result.failure(e)
         }
     }
     // OBTENER PUBLICACIÓN POR ID
     suspend fun obtenerPublicacionPorId(idPublicacion: String, token: String): Result<PublicacionDetalle> {
         return try {
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "=== obtenerPublicacionPorId ===")
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "ID Publicación: $idPublicacion")
+            Log.d(TAG, "=== obtenerPublicacionPorId ===")
+            Log.d(TAG, "ID Publicación: $idPublicacion")
 
             val authHeader = "Bearer $token"
             val response = apiService.obtenerPublicacionPorId(idPublicacion, authHeader)
 
             if (response.isSuccessful) {
                 response.body()?.let { publicacion ->
-                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "  Publicación obtenida: ${publicacion.titulo}")
+                    Log.d(TAG, "  Publicación obtenida: ${publicacion.titulo}")
                     Result.success(publicacion)
                 } ?: Result.failure(Exception("Respuesta vacía del servidor"))
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Error: $errorMsg")
+                Log.e(TAG, "  Error: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Exception: ${e.message}")
+            Log.e(TAG, "  Exception: ${e.message}")
             Result.failure(e)
         }
     }
@@ -218,26 +383,26 @@ class PublicacionRepository(
         token: String
     ): Result<PublicacionDetalle> {
         return try {
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "=== obtenerPublicacionDetalleCompleta ===")
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "ID Publicación: $idPublicacion")
+            Log.d(TAG, "=== obtenerPublicacionDetalleCompleta ===")
+            Log.d(TAG, "ID Publicación: $idPublicacion")
 
             val authHeader = "Bearer $token"
             val response = apiService.obtenerPublicacionPorId(idPublicacion, authHeader)
 
             if (response.isSuccessful) {
                 response.body()?.let { publicacion ->
-                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "  Publicación obtenida: ${publicacion.titulo}")
-                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "Multimedia: ${publicacion.multimedia.size} items")
-                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "Estatus: ${publicacion.estatus}")
+                    Log.d(TAG, "  Publicación obtenida: ${publicacion.titulo}")
+                    Log.d(TAG, "Multimedia: ${publicacion.multimedia.size} items")
+                    Log.d(TAG, "Estatus: ${publicacion.estatus}")
                     Result.success(publicacion)
                 } ?: Result.failure(Exception("Respuesta vacía del servidor"))
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Error: $errorMsg")
+                Log.e(TAG, "  Error: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Exception: ${e.message}")
+            Log.e(TAG, "  Exception: ${e.message}")
             Result.failure(e)
         }
     }
@@ -251,9 +416,9 @@ class PublicacionRepository(
         imagenes: List<File>?,
         token: String
     ): Result<PublicacionDetalle> {
-        android.util.Log.d("PUBLICACION_REPO_DEBUG", "=== actualizarPublicacion ===")
-        android.util.Log.d("PUBLICACION_REPO_DEBUG", "ID: $idPublicacion")
-        android.util.Log.d("PUBLICACION_REPO_DEBUG", "Archivos multimedia: ${imagenes?.size ?: 0}")
+        Log.d(TAG, "=== actualizarPublicacion ===")
+        Log.d(TAG, "ID: $idPublicacion")
+        Log.d(TAG, "Archivos multimedia: ${imagenes?.size ?: 0}")
 
         return try {
             val textMediaType = "text/plain".toMediaTypeOrNull()
@@ -262,18 +427,18 @@ class PublicacionRepository(
             val estatusBody = RequestBody.create(textMediaType, estatus)
             val descripcionBody = descripcion?.let { RequestBody.create(textMediaType, it) }
 
-            // 🆕 Usar las mismas funciones helper para detectar tipos
+            // Usar las mismas funciones helper para detectar tipos
             val archivosParts = imagenes?.mapIndexed { index, file ->
                 val mediaType = getMediaTypeForFile(file)
                 val fileName = getFileNameForUpload(file, index)
 
-                android.util.Log.d("PUBLICACION_REPO_DEBUG", "Archivo $index: $fileName, tipo: $mediaType")
+                Log.d(TAG, "Archivo $index: $fileName, tipo: $mediaType")
 
                 val requestFile = RequestBody.create(mediaType.toMediaTypeOrNull(), file)
                 MultipartBody.Part.createFormData("archivos", fileName, requestFile)
             }
 
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Llamando a API para actualizar...")
+            Log.d(TAG, "Llamando a API para actualizar...")
 
             val response = apiService.actualizarPublicacion(
                 idPublicacion = idPublicacion,
@@ -284,18 +449,18 @@ class PublicacionRepository(
                 authorization = "Bearer $token"
             )
 
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Response code: ${response.code()}")
+            Log.d(TAG, "Response code: ${response.code()}")
 
             if (response.isSuccessful && response.body() != null) {
-                android.util.Log.d("PUBLICACION_REPO_DEBUG", "✅ Publicación actualizada")
+                Log.d(TAG, "Publicación actualizada")
                 Result.success(response.body()!!)
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Error: $errorMsg")
+                Log.e(TAG, "Error: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Exception: ${e.message}", e)
+            Log.e(TAG, "Exception: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -303,24 +468,24 @@ class PublicacionRepository(
     // ELIMINAR PUBLICACIÓN
     suspend fun eliminarPublicacion(idPublicacion: String, token: String): Result<String> {
         return try {
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "=== eliminarPublicacion ===")
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "ID Publicación: $idPublicacion")
+            Log.d(TAG, "=== eliminarPublicacion ===")
+            Log.d(TAG, "ID Publicación: $idPublicacion")
 
             val authHeader = "Bearer $token"
             val response = apiService.eliminarPublicacion(idPublicacion, authHeader)
 
             if (response.isSuccessful) {
                 response.body()?.let { resultado ->
-                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "  Publicación eliminada")
+                    Log.d(TAG, "  Publicación eliminada")
                     Result.success(resultado.message)
                 } ?: Result.success("Publicación eliminada exitosamente")
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Error: $errorMsg")
+                Log.e(TAG, "  Error: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Exception: ${e.message}")
+            Log.e(TAG, "  Exception: ${e.message}")
             Result.failure(e)
         }
     }
@@ -332,41 +497,41 @@ class PublicacionRepository(
         token: String
     ): Result<List<PublicacionListFeed>> {
         return try {
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "=== obtenerPublicacionesUsuario ===")
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "ID Autor: $idAutor")
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Incluir borradores: $incluirBorradores")
+            Log.d(TAG, "=== obtenerPublicacionesUsuario ===")
+            Log.d(TAG, "ID Autor: $idAutor")
+            Log.d(TAG, "Incluir borradores: $incluirBorradores")
 
             val authHeader = "Bearer $token"
 
             val response = if (incluirBorradores) {
-                android.util.Log.d("PUBLICACION_REPO_DEBUG", "Llamando a obtenerBorradoresUsuario")
+                Log.d(TAG, "Llamando a obtenerBorradoresUsuario")
                 apiService.obtenerBorradoresUsuario(
                     idUsuario = idAutor,
                     authorization = authHeader
                 )
             } else {
-                android.util.Log.d("PUBLICACION_REPO_DEBUG", "Llamando a obtenerPublicacionesActivasUsuario")
+                Log.d(TAG, "Llamando a obtenerPublicacionesActivasUsuario")
                 apiService.obtenerPublicacionesActivasUsuario(
                     idUsuario = idAutor,
                     authorization = authHeader
                 )
             }
 
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Response code: ${response.code()}")
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Response successful: ${response.isSuccessful}")
+            Log.d(TAG, "Response code: ${response.code()}")
+            Log.d(TAG, "Response successful: ${response.isSuccessful}")
 
             if (response.isSuccessful) {
                 response.body()?.let { publicaciones ->
-                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "  Publicaciones obtenidas: ${publicaciones.size}")
+                    Log.d(TAG, "  Publicaciones obtenidas: ${publicaciones.size}")
                     Result.success(publicaciones)
                 } ?: Result.failure(Exception("Respuesta vacía del servidor"))
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Error: $errorMsg")
+                Log.e(TAG, "  Error: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Exception: ${e.message}")
+            Log.e(TAG, "  Exception: ${e.message}")
             Result.failure(e)
         }
     }
@@ -378,7 +543,7 @@ class PublicacionRepository(
         token: String
     ): Result<List<Post>> {
         return try {
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "=== obtenerPublicacionesUsuarioConvertidas ===")
+            Log.d(TAG, "=== obtenerPublicacionesUsuarioConvertidas ===")
 
             // Obtener publicaciones del usuario
             val result = obtenerPublicacionesUsuario(idAutor, incluirBorradores, token)
@@ -403,7 +568,7 @@ class PublicacionRepository(
                         )
                     }
 
-                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "  Convertidas ${posts.size} publicaciones de usuario con API IDs")
+                    Log.d(TAG, "  Convertidas ${posts.size} publicaciones de usuario con API IDs")
                     Result.success(posts)
                 },
                 onFailure = { error ->
@@ -411,30 +576,28 @@ class PublicacionRepository(
                 }
             )
         } catch (e: Exception) {
-            android.util.Log.e("PUBLICACION_REPO_DEBUG", " Exception: ${e.message}")
+            Log.e(TAG, " Exception: ${e.message}")
             Result.failure(e)
         }
     }
 
-    // ============================================
     // OBTENER FAVORITOS DEL USUARIO CONVERTIDOS A POST
-    // ============================================
     suspend fun obtenerFavoritosUsuarioConvertidos(
         idUsuario: String,
         token: String
     ): Result<List<Post>> {
         return try {
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "=== obtenerFavoritosUsuarioConvertidos ===")
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Usuario ID: $idUsuario")
+            Log.d(TAG, "=== obtenerFavoritosUsuarioConvertidos ===")
+            Log.d(TAG, "Usuario ID: $idUsuario")
 
             val authHeader = "Bearer $token"
             val response = apiService.obtenerFavoritasUsuario(idUsuario, authHeader)
 
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Response code: ${response.code()}")
+            Log.d(TAG, "Response code: ${response.code()}")
 
             if (response.isSuccessful) {
                 response.body()?.let { favoritasList ->
-                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "  Favoritos obtenidos: ${favoritasList.size} publicaciones")
+                    Log.d(TAG, "  Favoritos obtenidos: ${favoritasList.size} publicaciones")
 
                     // Convertir PublicacionListFeed a Post
                     val posts = favoritasList.mapIndexed { index, publicacion ->
@@ -454,17 +617,17 @@ class PublicacionRepository(
                         )
                     }
 
-                    android.util.Log.d("PUBLICACION_REPO_DEBUG", "  Posts convertidos: ${posts.size}")
+                    Log.d(TAG, "  Posts convertidos: ${posts.size}")
                     Result.success(posts)
 
                 } ?: Result.failure(Exception("Respuesta vacía del servidor"))
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Error: $errorMsg")
+                Log.e(TAG, "  Error: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e("PUBLICACION_REPO_DEBUG", "  Exception: ${e.message}")
+            Log.e(TAG, "  Exception: ${e.message}")
             Result.failure(e)
         }
     }
@@ -486,10 +649,10 @@ class PublicacionRepository(
         token: String
     ): Result<ReaccionResponse> {
         return try {
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "=== agregarReaccion ===")
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "ID Publicación: $idPublicacion")
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "ID Usuario: $idUsuario")
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Tipo Reacción: ${tipoReaccion.value}")
+            Log.d(TAG, "=== agregarReaccion ===")
+            Log.d(TAG, "ID Publicación: $idPublicacion")
+            Log.d(TAG, "ID Usuario: $idUsuario")
+            Log.d(TAG, "Tipo Reacción: ${tipoReaccion.value}")
 
             val response = apiService.agregarReaccion(
                 idPublicacion = idPublicacion,
@@ -498,18 +661,18 @@ class PublicacionRepository(
                 authorization = "Bearer $token"
             )
 
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Response code: ${response.code()}")
+            Log.d(TAG, "Response code: ${response.code()}")
 
             if (response.isSuccessful && response.body() != null) {
-                android.util.Log.d("PUBLICACION_REPO_DEBUG", "✅ Reacción agregada exitosamente")
+                Log.d(TAG, "Reacción agregada exitosamente")
                 Result.success(response.body()!!)
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Error al agregar reacción: $errorMsg")
+                Log.e(TAG, "Error al agregar reacción: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Exception: ${e.message}")
+            Log.e(TAG, "Exception: ${e.message}")
             Result.failure(e)
         }
     }
@@ -527,9 +690,9 @@ class PublicacionRepository(
         token: String
     ): Result<Boolean> {
         return try {
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "=== eliminarReaccion ===")
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "ID Publicación: $idPublicacion")
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "ID Usuario: $idUsuario")
+            Log.d(TAG, "=== eliminarReaccion ===")
+            Log.d(TAG, "ID Publicación: $idPublicacion")
+            Log.d(TAG, "ID Usuario: $idUsuario")
 
             val response = apiService.eliminarReaccion(
                 idPublicacion = idPublicacion,
@@ -537,18 +700,18 @@ class PublicacionRepository(
                 authorization = "Bearer $token"
             )
 
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Response code: ${response.code()}")
+            Log.d(TAG, "Response code: ${response.code()}")
 
             if (response.isSuccessful) {
-                android.util.Log.d("PUBLICACION_REPO_DEBUG", "✅ Reacción eliminada exitosamente")
+                Log.d(TAG, "Reacción eliminada exitosamente")
                 Result.success(true)
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Error al eliminar reacción: $errorMsg")
+                Log.e(TAG, "Error al eliminar reacción: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Exception: ${e.message}")
+            Log.e(TAG, "Exception: ${e.message}")
             Result.failure(e)
         }
     }
@@ -564,27 +727,27 @@ class PublicacionRepository(
         token: String
     ): Result<ConteoReaccionesResponse> {
         return try {
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "=== obtenerConteoReacciones ===")
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "ID Publicación: $idPublicacion")
+            Log.d(TAG, "=== obtenerConteoReacciones ===")
+            Log.d(TAG, "ID Publicación: $idPublicacion")
 
             val response = apiService.obtenerConteoReacciones(
                 idPublicacion = idPublicacion,
                 authorization = "Bearer $token"
             )
 
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Response code: ${response.code()}")
+            Log.d(TAG, "Response code: ${response.code()}")
 
             if (response.isSuccessful && response.body() != null) {
                 val conteo = response.body()!!
-                android.util.Log.d("PUBLICACION_REPO_DEBUG", "✅ Conteo obtenido - Likes: ${conteo.likes}, Dislikes: ${conteo.dislikes}")
+                Log.d(TAG, "Conteo obtenido - Likes: ${conteo.likes}, Dislikes: ${conteo.dislikes}")
                 Result.success(conteo)
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Error al obtener conteo: $errorMsg")
+                Log.e(TAG, "Error al obtener conteo: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Exception: ${e.message}")
+            Log.e(TAG, "Exception: ${e.message}")
             Result.failure(e)
         }
     }
@@ -602,9 +765,9 @@ class PublicacionRepository(
         token: String
     ): Result<VerificarReaccionResponse> {
         return try {
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "=== verificarReaccionUsuario ===")
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "ID Publicación: $idPublicacion")
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "ID Usuario: $idUsuario")
+            Log.d(TAG, "=== verificarReaccionUsuario ===")
+            Log.d(TAG, "ID Publicación: $idPublicacion")
+            Log.d(TAG, "ID Usuario: $idUsuario")
 
             val response = apiService.verificarReaccionUsuario(
                 idPublicacion = idPublicacion,
@@ -612,19 +775,19 @@ class PublicacionRepository(
                 authorization = "Bearer $token"
             )
 
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Response code: ${response.code()}")
+            Log.d(TAG, "Response code: ${response.code()}")
 
             if (response.isSuccessful && response.body() != null) {
                 val verificacion = response.body()!!
-                android.util.Log.d("PUBLICACION_REPO_DEBUG", "✅ Verificación obtenida - Tiene reacción: ${verificacion.tieneReaccion}, Tipo: ${verificacion.tipoReaccion}")
+                Log.d(TAG, "Verificación obtenida - Tiene reacción: ${verificacion.tieneReaccion}, Tipo: ${verificacion.tipoReaccion}")
                 Result.success(verificacion)
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Error al verificar reacción: $errorMsg")
+                Log.e(TAG, "Error al verificar reacción: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Exception: ${e.message}")
+            Log.e(TAG, "Exception: ${e.message}")
             Result.failure(e)
         }
     }
@@ -642,7 +805,7 @@ class PublicacionRepository(
         token: String
     ): Result<VerificarReaccionResponse> {
         return try {
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "=== toggleLike ===")
+            Log.d(TAG, "=== toggleLike ===")
 
             // Primero verificar si ya tiene reacción
             val verificacionResult = verificarReaccionUsuario(idPublicacion, idUsuario, token)
@@ -652,7 +815,7 @@ class PublicacionRepository(
                     when {
                         verificacion.esLike() -> {
                             // Ya tiene like, eliminarlo
-                            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Usuario ya tiene LIKE, eliminando...")
+                            Log.d(TAG, "Usuario ya tiene LIKE, eliminando...")
                             eliminarReaccion(idPublicacion, idUsuario, token).fold(
                                 onSuccess = {
                                     Result.success(VerificarReaccionResponse(false, null))
@@ -662,7 +825,7 @@ class PublicacionRepository(
                         }
                         verificacion.esDislike() -> {
                             // Tiene dislike, cambiarlo a like
-                            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Usuario tiene DISLIKE, cambiando a LIKE...")
+                            Log.d(TAG, "Usuario tiene DISLIKE, cambiando a LIKE...")
                             agregarReaccion(idPublicacion, idUsuario, TipoReaccion.LIKE, token).fold(
                                 onSuccess = {
                                     Result.success(VerificarReaccionResponse(true, "like"))
@@ -672,7 +835,7 @@ class PublicacionRepository(
                         }
                         else -> {
                             // No tiene reacción, agregar like
-                            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Usuario no tiene reacción, agregando LIKE...")
+                            Log.d(TAG, "Usuario no tiene reacción, agregando LIKE...")
                             agregarReaccion(idPublicacion, idUsuario, TipoReaccion.LIKE, token).fold(
                                 onSuccess = {
                                     Result.success(VerificarReaccionResponse(true, "like"))
@@ -685,7 +848,7 @@ class PublicacionRepository(
                 onFailure = { Result.failure(it) }
             )
         } catch (e: Exception) {
-            android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Exception en toggleLike: ${e.message}")
+            Log.e(TAG, "Exception en toggleLike: ${e.message}")
             Result.failure(e)
         }
     }
@@ -703,7 +866,7 @@ class PublicacionRepository(
         token: String
     ): Result<VerificarReaccionResponse> {
         return try {
-            android.util.Log.d("PUBLICACION_REPO_DEBUG", "=== toggleDislike ===")
+            Log.d(TAG, "=== toggleDislike ===")
 
             // Primero verificar si ya tiene reacción
             val verificacionResult = verificarReaccionUsuario(idPublicacion, idUsuario, token)
@@ -713,7 +876,7 @@ class PublicacionRepository(
                     when {
                         verificacion.esDislike() -> {
                             // Ya tiene dislike, eliminarlo
-                            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Usuario ya tiene DISLIKE, eliminando...")
+                            Log.d(TAG, "Usuario ya tiene DISLIKE, eliminando...")
                             eliminarReaccion(idPublicacion, idUsuario, token).fold(
                                 onSuccess = {
                                     Result.success(VerificarReaccionResponse(false, null))
@@ -723,7 +886,7 @@ class PublicacionRepository(
                         }
                         verificacion.esLike() -> {
                             // Tiene like, cambiarlo a dislike
-                            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Usuario tiene LIKE, cambiando a DISLIKE...")
+                            Log.d(TAG, "Usuario tiene LIKE, cambiando a DISLIKE...")
                             agregarReaccion(idPublicacion, idUsuario, TipoReaccion.DISLIKE, token).fold(
                                 onSuccess = {
                                     Result.success(VerificarReaccionResponse(true, "dislike"))
@@ -733,7 +896,7 @@ class PublicacionRepository(
                         }
                         else -> {
                             // No tiene reacción, agregar dislike
-                            android.util.Log.d("PUBLICACION_REPO_DEBUG", "Usuario no tiene reacción, agregando DISLIKE...")
+                            Log.d(TAG, "Usuario no tiene reacción, agregando DISLIKE...")
                             agregarReaccion(idPublicacion, idUsuario, TipoReaccion.DISLIKE, token).fold(
                                 onSuccess = {
                                     Result.success(VerificarReaccionResponse(true, "dislike"))
@@ -746,7 +909,7 @@ class PublicacionRepository(
                 onFailure = { Result.failure(it) }
             )
         } catch (e: Exception) {
-            android.util.Log.e("PUBLICACION_REPO_DEBUG", "❌ Exception en toggleDislike: ${e.message}")
+            Log.e(TAG, "Exception en toggleDislike: ${e.message}")
             Result.failure(e)
         }
     }
@@ -783,7 +946,7 @@ class PublicacionRepository(
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.w("PUBLICACION_REPO_DEBUG", "Error al formatear fecha: $fechaISO")
+            Log.w(TAG, "Error al formatear fecha: $fechaISO")
             "Fecha inválida"
         }
     }
