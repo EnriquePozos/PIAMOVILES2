@@ -56,7 +56,7 @@ class FeedActivity : AppCompatActivity() {
         // ============================================
         // CARGAR DATOS DE LA API
         // ============================================
-        loadPostsFromApi()
+        loadPosts()
 
         android.util.Log.d(TAG, "FeedActivity iniciada")
     }
@@ -130,7 +130,7 @@ class FeedActivity : AppCompatActivity() {
             .setTitle("Opciones")
             .setItems(options) { _, which ->
                 when (which) {
-                    0 -> loadPostsFromApi()
+                    0 -> loadPosts()
                     1 -> startActivity(Intent(this, CreatePostActivity::class.java))
                     2 -> startActivity(Intent(this, ProfileActivity::class.java))
                     3 -> logoutModal()
@@ -145,7 +145,8 @@ class FeedActivity : AppCompatActivity() {
     // ============================================
     private fun setupApiComponents() {
         sessionManager = SessionManager(this)
-        publicacionRepository = PublicacionRepository()
+        // Pasar context para habilitar funcionalidad offline
+        publicacionRepository = PublicacionRepository(context = this)
 
         // Verificar sesión válida
         if (!sessionManager.isLoggedIn()) {
@@ -208,15 +209,15 @@ class FeedActivity : AppCompatActivity() {
         // Si tienes SwipeRefreshLayout en tu XML, descomenta esto:
         /*
         binding.swipeRefreshLayout.setOnRefreshListener {
-            loadPostsFromApi()
+            loadPosts()
         }
         */
     }
 
     // ============================================
-    // LOAD POSTS FROM API
+    // LOAD POSTS (OFFLINE U ONLINE)
     // ============================================
-    private fun loadPostsFromApi() {
+    private fun loadPosts() {
         if (isLoading) {
             android.util.Log.d(TAG, "Ya está cargando, ignorando nueva petición")
             return
@@ -232,13 +233,14 @@ class FeedActivity : AppCompatActivity() {
 
         setLoading(true)
 
-        // Llamada a API con corrutinas
+        // Llamada a repository con corrutinas
         CoroutineScope(Dispatchers.Main).launch {
             try {
                 android.util.Log.d(TAG, "Iniciando carga de publicaciones...")
 
                 val result = withContext(Dispatchers.IO) {
-                    publicacionRepository.obtenerFeedConvertido(
+                    // CAMBIO: Usar método que detecta automáticamente online/offline
+                    publicacionRepository.obtenerFeedSegunConectividad(
                         token = token,
                         currentUserId = currentUser.id
                     )
@@ -410,7 +412,7 @@ class FeedActivity : AppCompatActivity() {
         // Recargar datos cuando regrese a la pantalla
         // (ej: después de crear una nueva publicación)
         android.util.Log.d(TAG, "onResume - Recargando feed")
-        loadPostsFromApi()
+        loadPosts()
     }
 
     override fun onDestroy() {

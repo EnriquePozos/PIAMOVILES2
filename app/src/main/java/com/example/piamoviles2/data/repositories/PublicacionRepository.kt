@@ -120,6 +120,7 @@ class PublicacionRepository(
     }
 
     // MÉTODO OFFLINE - Guardar en SQLite cuando no hay conexión
+// MÉTODO OFFLINE CORREGIDO - Copiar archivos a directorio persistente
     private suspend fun crearPublicacionOffline(
         titulo: String,
         descripcion: String?,
@@ -132,15 +133,53 @@ class PublicacionRepository(
             Log.d(TAG, "MODO OFFLINE - Guardando en SQLite")
 
             val db = database ?: return Result.failure(Exception("Base de datos no disponible"))
+            val ctx = context ?: return Result.failure(Exception("Context no disponible"))
 
-            // Convertir archivos a JSON para almacenar rutas
-            val multimediaJson = imagenes?.map { file ->
-                mapOf(
-                    "tipo" to getMediaTypeForFile(file),
-                    "ruta" to file.absolutePath,
-                    "nombre" to file.name
-                )
-            }?.let { JSONArray(it).toString() }
+            // NUEVO: Copiar archivos a directorio persistente
+            val archivosPersistentes = imagenes?.mapIndexed { index, originalFile ->
+                try {
+                    // Crear directorio persistente para multimedia offline
+                    val offlineDir = File(ctx.filesDir, "multimedia_offline")
+                    if (!offlineDir.exists()) {
+                        offlineDir.mkdirs()
+                        Log.d(TAG, "Directorio offline creado: ${offlineDir.absolutePath}")
+                    }
+
+                    // Generar nombre único para el archivo
+                    val timestamp = System.currentTimeMillis()
+                    val extension = originalFile.extension.ifEmpty { "jpg" }
+                    val fileName = "multimedia_${timestamp}_$index.$extension"
+
+                    // Archivo destino en directorio persistente
+                    val destFile = File(offlineDir, fileName)
+
+                    Log.d(TAG, "Copiando archivo de: ${originalFile.absolutePath}")
+                    Log.d(TAG, "Copiando archivo a: ${destFile.absolutePath}")
+
+                    // Copiar archivo
+                    originalFile.copyTo(destFile, overwrite = true)
+
+                    Log.d(TAG, "Archivo copiado exitosamente - Tamaño: ${destFile.length()} bytes")
+                    Log.d(TAG, "Archivo existe después de copia: ${destFile.exists()}")
+
+                    mapOf(
+                        "tipo" to getMediaTypeForFile(originalFile),
+                        "ruta" to destFile.absolutePath,  // ✅ RUTA PERSISTENTE
+                        "nombre" to fileName
+                    )
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error al copiar archivo $index: ${e.message}", e)
+                    null
+                }
+            }?.filterNotNull()
+
+            // Convertir a JSON
+            val multimediaJson = archivosPersistentes?.let {
+                JSONArray(it).toString()
+            }
+
+            Log.d(TAG, "JSON generado para multimedia: $multimediaJson")
+            Log.d(TAG, "Archivos copiados a directorio persistente: ${archivosPersistentes?.size ?: 0}")
 
             // Crear entidad local
             val publicacionLocal = PublicacionLocal(
@@ -149,7 +188,7 @@ class PublicacionRepository(
                 estatus = estatus,
                 idAutor = idAutor,
                 multimediaJson = multimediaJson,
-                token = token, // Guardar token para uso posterior en sincronización
+                token = token,
                 sincronizado = false,
                 fechaCreacion = System.currentTimeMillis()
             )
@@ -186,7 +225,7 @@ class PublicacionRepository(
         }
     }
 
-    // MÉTODO PARA SINCRONIZAR PUBLICACIONES PENDIENTES
+    // MÉTODO PARA SINCRONIZAR PUBLICACIONES PENDIENTES - CON LOGS DE DEBUG
     suspend fun sincronizarPublicacionesPendientes(token: String): Result<Int> {
         return try {
             Log.d(TAG, "=== sincronizarPublicacionesPendientes ===")
@@ -200,13 +239,80 @@ class PublicacionRepository(
 
             for (publicacion in publicacionesPendientes) {
                 try {
+                    Log.d(TAG, "=== DEBUGGING RECUPERACIÓN DE MULTIMEDIA ===")
+                    Log.d(TAG, "Sincronizando publicación local ID: ${publicacion.id}")
+                    Log.d(TAG, "Título: ${publicacion.titulo}")
+                    Log.d(TAG, "MultimediaJson RAW: ${publicacion.multimediaJson}")
+                    Log.d(TAG, "MultimediaJson es null? ${publicacion.multimediaJson == null}")
+                    Log.d(TAG, "MultimediaJson está vacío? ${publicacion.multimediaJson?.isEmpty()}")
+                    Log.d(TAG, "MultimediaJson length: ${publicacion.multimediaJson?.length ?: 0}")
+
                     // Intentar crear en API
                     val imagenes = publicacion.multimediaJson?.let { json ->
-                        val jsonArray = JSONArray(json)
-                        (0 until jsonArray.length()).map { i ->
-                            val obj = jsonArray.getJSONObject(i)
-                            File(obj.getString("ruta"))
-                        }.filter { it.exists() }
+                        Log.d(TAG, "Procesando JSON: $json")
+
+                        try {
+                            val jsonArray = JSONArray(json)
+                            Log.d(TAG, "JSONArray creado exitosamente, longitud: ${jsonArray.length()}")
+
+                            val archivosList = (0 until jsonArray.length()).mapNotNull { i ->
+                                try {
+                                    val obj = jsonArray.getJSONObject(i)
+                                    Log.d(TAG, "Objeto $i: $obj")
+
+                                    val ruta = obj.getString("ruta")
+                                    val tipo = obj.optString("tipo", "desconocido")
+                                    val nombre = obj.optString("nombre", "sin_nombre")
+
+                                    Log.d(TAG, "Archivo $i - Ruta: $ruta")
+                                    Log.d(TAG, "Archivo $i - Tipo: $tipo")
+                                    Log.d(TAG, "Archivo $i - Nombre: $nombre")
+
+                                    val file = File(ruta)
+                                    Log.d(TAG, "Archivo $i - Existe?: ${file.exists()}")
+                                    Log.d(TAG, "Archivo $i - Tamaño: ${if (file.exists()) file.length() else "N/A"} bytes")
+                                    Log.d(TAG, "Archivo $i - Legible?: ${file.canRead()}")
+
+                                    if (file.exists()) {
+                                        Log.d(TAG, "✅ Archivo $i válido: ${file.absolutePath}")
+                                        file
+                                    } else {
+                                        Log.w(TAG, "❌ Archivo $i no existe: $ruta")
+                                        null
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "❌ Error al procesar objeto $i: ${e.message}", e)
+                                    null
+                                }
+                            }
+
+                            Log.d(TAG, "Archivos válidos encontrados: ${archivosList.size}")
+                            archivosList.forEachIndexed { index, archivo ->
+                                Log.d(TAG, "Archivo válido $index: ${archivo.absolutePath}")
+                            }
+
+                            archivosList
+                        } catch (jsonException: Exception) {
+                            Log.e(TAG, "❌ Error al parsear JSON: ${jsonException.message}", jsonException)
+                            emptyList<File>()
+                        }
+                    } ?: run {
+                        Log.w(TAG, "⚠️ multimediaJson es null, retornando lista vacía")
+                        emptyList<File>()
+                    }
+
+                    Log.d(TAG, "=== RESULTADO FINAL ===")
+                    Log.d(TAG, "Total de imágenes recuperadas: ${imagenes.size}")
+                    Log.d(TAG, "Llamando a crearPublicacion con ${imagenes.size} archivos")
+
+                    if (imagenes.isEmpty()) {
+                        Log.w(TAG, "⚠️ ADVERTENCIA: No hay imágenes para sincronizar")
+                        Log.w(TAG, "⚠️ La publicación se sincronizará SIN multimedia")
+                    } else {
+                        Log.d(TAG, "✅ Archivos listos para enviar:")
+                        imagenes.forEachIndexed { index, file ->
+                            Log.d(TAG, "  [$index] ${file.name} (${file.length()} bytes)")
+                        }
                     }
 
                     val result = crearPublicacion(
@@ -971,4 +1077,112 @@ class PublicacionRepository(
             "Error al procesar respuesta: ${response.code()}"
         }
     }
+
+    /**
+     * Obtener feed de publicaciones desde SQLite (modo offline)
+     * Convierte PublicacionLocal a Post para mantener compatibilidad
+     */
+    suspend fun obtenerFeedOfflineConvertido(currentUserId: String): Result<List<Post>> {
+        return try {
+            Log.d(TAG, "=== obtenerFeedOfflineConvertido ===")
+
+            val db = database ?: return Result.failure(Exception("Base de datos no disponible"))
+            val publicacionesLocales = db.publicacionLocalDao().obtenerPublicacionesParaFeed()
+
+            Log.d(TAG, "Publicaciones locales encontradas: ${publicacionesLocales.size}")
+
+            val posts = publicacionesLocales.mapIndexed { index, publicacionLocal ->
+                // Convertir PublicacionLocal a Post
+                Post(
+                    id = publicacionLocal.id.toInt(), // Usar el ID local
+                    apiId = publicacionLocal.apiId, // Puede ser null si no se ha sincronizado
+                    title = publicacionLocal.titulo,
+                    description = publicacionLocal.descripcion ?: "",
+                    imageUrl = extraerPrimeraImagenLocal(publicacionLocal.multimediaJson) ?: "default_recipe",
+                    author = "Usuario", // En offline no tenemos info del autor completa
+                    createdAt = formatearFechaLocal(publicacionLocal.fechaCreacion),
+                    isOwner = publicacionLocal.idAutor == currentUserId,
+                    isFavorite = false, // En offline no manejamos favoritos aún
+                    isDraft = publicacionLocal.estatus == "borrador",
+                    likesCount = 0, // En offline no tenemos conteos
+                    commentsCount = 0 // En offline no tenemos conteos
+                )
+            }
+
+            Log.d(TAG, "Convertidas ${posts.size} publicaciones offline a Post")
+            Result.success(posts)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al obtener feed offline: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Método principal para obtener feed según conectividad
+     * ONLINE = API, OFFLINE = SQLite
+     */
+    suspend fun obtenerFeedSegunConectividad(token: String, currentUserId: String): Result<List<Post>> {
+        val hasInternet = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            networkMonitor?.isOnline() ?: true
+        } else {
+            true // Para versiones anteriores, asumir conexión
+        }
+
+        Log.d(TAG, "=== obtenerFeedSegunConectividad ===")
+        Log.d(TAG, "Estado de conectividad: ${if (hasInternet) "ONLINE" else "OFFLINE"}")
+
+        return if (hasInternet) {
+            // Modo online - usar API (método existente)
+            obtenerFeedConvertido(token, currentUserId)
+        } else {
+            // Modo offline - usar SQLite
+            obtenerFeedOfflineConvertido(currentUserId)
+        }
+    }
+
+    /**
+     * Extraer la primera imagen del JSON de multimedia para preview
+     */
+    private fun extraerPrimeraImagenLocal(multimediaJson: String?): String? {
+        return try {
+            if (multimediaJson.isNullOrEmpty()) {
+                Log.d(TAG, "No hay multimedia JSON")
+                return null
+            }
+
+            val jsonArray = JSONArray(multimediaJson)
+            if (jsonArray.length() > 0) {
+                val primerItem = jsonArray.getJSONObject(0)
+                val ruta = primerItem.getString("ruta")
+                val tipo = primerItem.optString("tipo", "")
+
+                Log.d(TAG, "Primera imagen encontrada: $ruta")
+
+                // Verificar si es imagen y si el archivo existe
+                if (tipo.startsWith("image/") && File(ruta).exists()) {
+                    return "file://$ruta" // Prefijo para cargar desde archivo local
+                }
+            }
+            null
+        } catch (e: Exception) {
+            Log.w(TAG, "Error al extraer primera imagen: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Formatear timestamp local a fecha legible
+     */
+    private fun formatearFechaLocal(timestamp: Long): String {
+        return try {
+            val fecha = java.util.Date(timestamp)
+            val formato = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault())
+            formato.format(fecha)
+        } catch (e: Exception) {
+            Log.w(TAG, "Error al formatear fecha local: $timestamp")
+            "Fecha no disponible"
+        }
+    }
+
 }
