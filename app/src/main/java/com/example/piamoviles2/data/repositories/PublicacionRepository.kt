@@ -26,7 +26,7 @@ class PublicacionRepository(
 ) {
 
     // COMPONENTES PARA MODO OFFLINE
-    private val database: AppDatabase? by lazy {
+    internal val database: AppDatabase? by lazy {
         context?.let { AppDatabase.getDatabase(it) }
     }
 

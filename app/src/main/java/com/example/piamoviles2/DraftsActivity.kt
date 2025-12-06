@@ -8,6 +8,9 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.piamoviles2.databinding.ActivityDraftsBinding
+// Manejar si esta online o no
+import com.example.piamoviles2.utils.NetworkMonitor
+
 
 // ============================================
 // ✅ IMPORTS PARA API INTEGRATION
@@ -21,6 +24,8 @@ class DraftsActivity : AppCompatActivity() {
     private lateinit var binding: ActivityDraftsBinding
     private lateinit var draftAdapter: DraftAdapter
     private var draftPosts = mutableListOf<Post>()
+
+    private lateinit var networkMonitor: NetworkMonitor
 
     // ============================================
     // ✅ VARIABLES PARA API INTEGRATION
@@ -38,7 +43,8 @@ class DraftsActivity : AppCompatActivity() {
 
         // ✅ INICIALIZAR API COMPONENTS
         sessionManager = SessionManager(this)
-        publicacionRepository = PublicacionRepository()
+        publicacionRepository = PublicacionRepository(this)
+        networkMonitor = NetworkMonitor(this)
 
         setupHeader()
         setupRecyclerView()
@@ -88,14 +94,15 @@ class DraftsActivity : AppCompatActivity() {
 
         setLoadingDrafts(true)
 
-        // Llamada a API con corrutinas
+        // Llamada a repository con corrutinas
         CoroutineScope(Dispatchers.Main).launch {
             try {
                 android.util.Log.d(TAG, "=== Cargando borradores del usuario ===")
                 android.util.Log.d(TAG, "User ID: ${currentUser.id}")
 
                 val result = withContext(Dispatchers.IO) {
-                    publicacionRepository.obtenerPublicacionesUsuarioConvertidas(
+                    // CAMBIO: Usar método que detecta automáticamente online/offline
+                    publicacionRepository.obtenerPublicacionesUsuarioSegunConectividad(
                         idAutor = currentUser.id,
                         incluirBorradores = true, // ✅ TRUE para obtener borradores
                         token = token
@@ -114,13 +121,17 @@ class DraftsActivity : AppCompatActivity() {
 
                         if (draftsList.isEmpty()) {
                             android.util.Log.d(TAG, "Usuario no tiene borradores")
+                            Toast.makeText(this@DraftsActivity, "No tienes borradores guardados", Toast.LENGTH_SHORT).show()
                         } else {
                             Toast.makeText(this@DraftsActivity, "${draftsList.size} borradores cargados", Toast.LENGTH_SHORT).show()
                         }
                     },
                     onFailure = { error ->
                         android.util.Log.e(TAG, "❌ Error al cargar borradores", error)
-                        handleDraftsError(error)
+                        // CAMBIO: Manejo simplificado ya que el método automático maneja online/offline
+                        draftPosts.clear()
+                        updateUI()
+                        Toast.makeText(this@DraftsActivity, "Error al cargar borradores: ${error.message}", Toast.LENGTH_SHORT).show()
                     }
                 )
 
@@ -225,7 +236,7 @@ class DraftsActivity : AppCompatActivity() {
 
         val intent = Intent(this, CreatePostActivity::class.java)
         intent.putExtra(CreatePostActivity.EXTRA_DRAFT_ID, draft.id)
-        if (!draft.apiId.isNullOrEmpty()) {
+        if (!draft.apiId.isNullOrEmpty() and networkMonitor.isOnline()) {
             intent.putExtra(CreatePostActivity.EXTRA_DRAFT_API_ID, draft.apiId)
         }
         startActivity(intent)

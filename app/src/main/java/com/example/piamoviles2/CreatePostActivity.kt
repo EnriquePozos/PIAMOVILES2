@@ -22,6 +22,7 @@ import com.bumptech.glide.request.transition.Transition
 import com.example.piamoviles2.data.models.MultimediaResponse
 import java.io.InputStream
 import java.net.URL
+import org.json.JSONArray
 
 class CreatePostActivity : AppCompatActivity() {
 
@@ -266,15 +267,15 @@ class CreatePostActivity : AppCompatActivity() {
         editingDraftApiId = intent.getStringExtra(EXTRA_DRAFT_API_ID)
 
         if (editingDraftApiId != null) {
-            // Editar borrador usando API ID
+            // Editar borrador usando API ID (ONLINE)
             isEditMode = true
             binding.tvScreenTitle.text = "Editar receta"
-            android.util.Log.d(TAG, "Modo edición: Borrador API ID = $editingDraftApiId")
+            android.util.Log.d(TAG, "Modo edición ONLINE: Borrador API ID = $editingDraftApiId")
             loadDraftFromApi(editingDraftApiId!!)
             return
         }
 
-        // Verificar ID local (legacy)
+        // Verificar ID local (OFFLINE o legacy)
         editingPostId = intent.getIntExtra(EXTRA_DRAFT_ID, -1)
         if (editingPostId == -1) {
             editingPostId = intent.getIntExtra(EXTRA_POST_ID, -1)
@@ -283,8 +284,9 @@ class CreatePostActivity : AppCompatActivity() {
         if (editingPostId != -1) {
             isEditMode = true
             binding.tvScreenTitle.text = "Editar receta"
-            android.util.Log.d(TAG, "Modo edición: Post local ID = $editingPostId")
-            loadPostData(editingPostId)
+            android.util.Log.d(TAG, "Modo edición OFFLINE: Post local ID = $editingPostId")
+            // CAMBIO: Usar método para SQLite en lugar de mock data
+            loadDraftFromSQLite(editingPostId.toLong())
         } else {
             // Modo creación
             android.util.Log.d(TAG, "Modo creación: Nueva receta")
@@ -440,6 +442,155 @@ class CreatePostActivity : AppCompatActivity() {
                     downloadVideoToFile(url, item)
                 }
             })
+    }
+
+    private fun loadDraftFromSQLite(localId: Long) {
+        android.util.Log.d(TAG, "=== Cargando borrador desde SQLite ===")
+        android.util.Log.d(TAG, "Local ID: $localId")
+
+        setLoading(true)
+
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    // Obtener la publicación local desde la base de datos
+                    val db = publicacionRepository.database
+                        ?: return@withContext Result.failure<com.example.piamoviles2.data.local.entities.PublicacionLocal>(
+                            Exception("Base de datos no disponible")
+                        )
+
+                    try {
+                        val publicacionLocal = db.publicacionLocalDao().obtenerPublicacionesParaFeed()
+                            .find { it.id == localId }
+
+                        if (publicacionLocal != null) {
+                            Result.success(publicacionLocal)
+                        } else {
+                            Result.failure(Exception("Borrador no encontrado en SQLite"))
+                        }
+                    } catch (e: Exception) {
+                        Result.failure(e)
+                    }
+                }
+
+                result.fold(
+                    onSuccess = { publicacionLocal ->
+                        android.util.Log.d(TAG, "✅ Borrador SQLite cargado: ${publicacionLocal.titulo}")
+
+                        // Cargar datos en la interfaz
+                        binding.etRecipeTitle.setText(publicacionLocal.titulo)
+                        binding.etRecipeDescription.setText(publicacionLocal.descripcion)
+
+                        // Cargar imágenes locales si existen
+                        publicacionLocal.multimediaJson?.let { multimediaJson ->
+                            loadMultimediaFromSQLite(multimediaJson)
+                        }
+
+                        // Actualizar botones para modo edición
+                        updateUIForEditMode()
+                    },
+                    onFailure = { error ->
+                        android.util.Log.e(TAG, "❌ Error al cargar borrador SQLite", error)
+                        Toast.makeText(this@CreatePostActivity, "Error al cargar borrador: ${error.message}", Toast.LENGTH_LONG).show()
+                        finish()
+                    }
+                )
+
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "❌ Exception al cargar borrador SQLite", e)
+                Toast.makeText(this@CreatePostActivity, "Error inesperado: ${e.message}", Toast.LENGTH_LONG).show()
+                finish()
+            } finally {
+                setLoading(false)
+            }
+        }
+    }
+
+    // ============================================
+// 🆕 CARGAR MULTIMEDIA DESDE JSON LOCAL
+// ============================================
+    private fun loadMultimediaFromSQLite(multimediaJson: String) {
+        android.util.Log.d(TAG, "=== loadMultimediaFromSQLite ===")
+        android.util.Log.d(TAG, "JSON: $multimediaJson")
+
+        try {
+            val jsonArray = org.json.JSONArray(multimediaJson)
+
+            for (i in 0 until jsonArray.length()) {
+                val obj = jsonArray.getJSONObject(i)
+                val tipo = obj.getString("tipo")
+                val ruta = obj.getString("ruta")
+                val nombre = obj.optString("nombre", "archivo")
+
+                android.util.Log.d(TAG, "Procesando archivo local: tipo=$tipo, ruta=$ruta")
+
+                val file = java.io.File(ruta)
+                if (file.exists()) {
+                    when {
+                        tipo.startsWith("image/") -> {
+                            // Cargar imagen desde archivo
+                            loadImageFromLocalFile(file)
+                        }
+                        tipo.startsWith("video/") -> {
+                            // Cargar video desde archivo
+                            loadVideoFromLocalFile(file)
+                        }
+                        else -> {
+                            android.util.Log.w(TAG, "Tipo de archivo desconocido: $tipo")
+                        }
+                    }
+                } else {
+                    android.util.Log.w(TAG, "Archivo no existe: $ruta")
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error al procesar multimedia JSON", e)
+        }
+    }
+
+    // ============================================
+// 🆕 HELPERS PARA CARGAR ARCHIVOS LOCALES
+// ============================================
+    private fun loadImageFromLocalFile(file: java.io.File) {
+        try {
+            val bitmap = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
+            if (bitmap != null) {
+                val item = MultimediaItem.crearImagen(bitmap)
+                item.file = file // Asignar archivo existente
+
+                multimediaAdapter.addItem(item)
+                updateEmptyState()
+
+                android.util.Log.d(TAG, "✅ Imagen local cargada: ${file.name}")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error al cargar imagen local", e)
+        }
+    }
+
+    private fun loadVideoFromLocalFile(file: java.io.File) {
+        try {
+            // Crear thumbnail del video
+            val thumbnail = com.bumptech.glide.Glide.with(this)
+                .asBitmap()
+                .load(file)
+                .submit()
+                .get() // Sincrono para simplificar
+
+            val item = MultimediaItem.crearVideo(
+                uri = android.net.Uri.fromFile(file),
+                thumbnail = thumbnail
+            )
+            item.file = file // Asignar archivo existente
+
+            multimediaAdapter.addItem(item)
+            updateEmptyState()
+
+            android.util.Log.d(TAG, "✅ Video local cargado: ${file.name}")
+
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error al cargar video local", e)
+        }
     }
 
     // ============================================
