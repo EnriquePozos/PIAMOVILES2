@@ -1184,5 +1184,91 @@ class PublicacionRepository(
             "Fecha no disponible"
         }
     }
+    // ============================================
+    // NUEVO: MÉTODOS PARA PERFIL OFFLINE
+    // ============================================
 
+    /**
+     * Obtener publicaciones del usuario desde SQLite (modo offline)
+     * Como en SQLite solo se guardan publicaciones del usuario activo,
+     * solo filtramos por estatus (borrador vs publicada)
+     */
+    suspend fun obtenerPublicacionesUsuarioOfflineConvertidas(
+        incluirBorradores: Boolean = false
+    ): Result<List<Post>> {
+        return try {
+            Log.d(TAG, "=== obtenerPublicacionesUsuarioOfflineConvertidas ===")
+            Log.d(TAG, "Incluir borradores: $incluirBorradores")
+
+            val db = database ?: return Result.failure(Exception("Base de datos no disponible"))
+
+            // Obtener todas las publicaciones locales (ya son del usuario activo)
+            val publicacionesLocales = db.publicacionLocalDao().obtenerPublicacionesParaFeed()
+
+            Log.d(TAG, "Total publicaciones offline encontradas: ${publicacionesLocales.size}")
+
+            // Filtrar por estatus según lo solicitado
+            val publicacionesFiltradas = if (incluirBorradores) {
+                // Para borradores: solo las que tengan estatus "borrador"
+                publicacionesLocales.filter { it.estatus == "borrador" }
+            } else {
+                // Para publicadas: solo las que tengan estatus "publicada"
+                publicacionesLocales.filter { it.estatus == "publicada" }
+            }
+
+            Log.d(TAG, "Publicaciones después de filtrar: ${publicacionesFiltradas.size}")
+
+            val posts = publicacionesFiltradas.mapIndexed { index, publicacionLocal ->
+                Post(
+                    id = publicacionLocal.id.toInt(), // Usar ID local
+                    apiId = publicacionLocal.apiId, // null si no se ha sincronizado
+                    title = publicacionLocal.titulo,
+                    description = publicacionLocal.descripcion ?: "",
+                    imageUrl = extraerPrimeraImagenLocal(publicacionLocal.multimediaJson) ?: "default_recipe",
+                    author = "Usuario", // En offline no tenemos alias completo
+                    createdAt = formatearFechaLocal(publicacionLocal.fechaCreacion),
+                    isOwner = true, // Todas las publicaciones offline son del usuario activo
+                    isFavorite = false, // En offline no manejamos favoritos
+                    isDraft = publicacionLocal.estatus == "borrador",
+                    likesCount = 0, // En offline no tenemos conteos
+                    commentsCount = 0 // En offline no tenemos conteos
+                )
+            }
+
+            Log.d(TAG, "Convertidas ${posts.size} publicaciones offline del usuario")
+            Result.success(posts)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al obtener publicaciones usuario offline: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Método principal para obtener publicaciones de usuario según conectividad
+     * ONLINE = API, OFFLINE = SQLite filtrado por estatus
+     */
+    suspend fun obtenerPublicacionesUsuarioSegunConectividad(
+        idAutor: String,
+        incluirBorradores: Boolean = false,
+        token: String
+    ): Result<List<Post>> {
+        val hasInternet = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            networkMonitor?.isOnline() ?: true
+        } else {
+            true // Para versiones anteriores, asumir conexión
+        }
+
+        Log.d(TAG, "=== obtenerPublicacionesUsuarioSegunConectividad ===")
+        Log.d(TAG, "Estado de conectividad: ${if (hasInternet) "ONLINE" else "OFFLINE"}")
+        Log.d(TAG, "Incluir borradores: $incluirBorradores")
+
+        return if (hasInternet) {
+            // Modo online - usar API (método existente)
+            obtenerPublicacionesUsuarioConvertidas(idAutor, incluirBorradores, token)
+        } else {
+            // Modo offline - usar SQLite filtrado
+            obtenerPublicacionesUsuarioOfflineConvertidas(incluirBorradores)
+        }
+    }
 }
