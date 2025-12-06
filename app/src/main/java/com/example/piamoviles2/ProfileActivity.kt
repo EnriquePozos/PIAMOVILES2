@@ -5,14 +5,13 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.ui.semantics.text
-//import androidx.glance.visibility
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.piamoviles2.databinding.ActivityProfileBinding
 import com.example.piamoviles2.utils.SessionManager
 import com.example.piamoviles2.utils.ImageUtils
 import com.example.piamoviles2.data.repositories.PublicacionRepository
 import kotlinx.coroutines.*
+
 class ProfileActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityProfileBinding
@@ -23,6 +22,10 @@ class ProfileActivity : AppCompatActivity() {
 
     private var userPosts = mutableListOf<Post>()
 
+    companion object {
+        private const val TAG = "PROFILE_DEBUG"
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -30,8 +33,8 @@ class ProfileActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         sessionManager = SessionManager(this)
-        publicacionRepository = PublicacionRepository()
-
+        // CAMBIO: Agregar context para habilitar funcionalidad offline
+        publicacionRepository = PublicacionRepository(context = this)
 
         setupHeader()
         setupUserInfo()
@@ -61,8 +64,8 @@ class ProfileActivity : AppCompatActivity() {
                 showPlaceholder = true
             )
 
-            android.util.Log.d("PROFILE_DEBUG", "Mostrando perfil de: ${currentUser.alias}")
-            android.util.Log.d("PROFILE_DEBUG", "URL imagen: ${currentUser.fotoPerfil}")
+            android.util.Log.d(TAG, "Mostrando perfil de: ${currentUser.alias}")
+            android.util.Log.d(TAG, "URL imagen: ${currentUser.fotoPerfil}")
         } else {
             Toast.makeText(this, "Error al cargar perfil", Toast.LENGTH_SHORT).show()
             finish()
@@ -84,50 +87,61 @@ class ProfileActivity : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
+        // 🚫 INHABILITAR: Modificar perfil
         binding.btnModifyProfile.setOnClickListener {
-            val intent = Intent(this, EditProfileActivity::class.java)
-            startActivity(intent)
+            Toast.makeText(this, "Funcionalidad no disponible en modo offline", Toast.LENGTH_SHORT).show()
+            android.util.Log.d(TAG, "Botón Modificar Perfil deshabilitado")
         }
 
+        // CAMBIO: Deshabilitar visualmente el botón
+        binding.btnModifyProfile.alpha = 0.5f
+        binding.btnModifyProfile.isEnabled = false
+
+        // ✅ MANTENER HABILITADO: Agregar receta
         binding.btnAddRecipe.setOnClickListener {
             val intent = Intent(this, CreatePostActivity::class.java)
             startActivity(intent)
         }
 
+        // ✅ MANTENER HABILITADO: Ver borradores
         binding.btnViewDrafts.setOnClickListener {
             val intent = Intent(this, DraftsActivity::class.java)
             startActivity(intent)
         }
 
+        // 🚫 INHABILITAR: Ver favoritos
         binding.btnViewFavorites.setOnClickListener {
-            val intent = Intent(this, FavoritesActivity::class.java)
-            startActivity(intent)
+            Toast.makeText(this, "Funcionalidad no disponible en modo offline", Toast.LENGTH_SHORT).show()
+            android.util.Log.d(TAG, "Botón Ver Favoritos deshabilitado")
         }
+
+        // CAMBIO: Deshabilitar visualmente el botón
+        binding.btnViewFavorites.alpha = 0.5f
+        binding.btnViewFavorites.isEnabled = false
     }
 
-
-// CARGAR POSTS REALES
-
+    // CARGAR PUBLICACIONES - AHORA CON SOPORTE OFFLINE/ONLINE AUTOMÁTICO
     private fun loadUserPosts() {
         val currentUser = sessionManager.getCurrentUser()
         val token = sessionManager.getAccessToken()
 
         if (currentUser == null || token == null) {
-            android.util.Log.e("PROFILE_DEBUG", "  Error: Usuario o token no válido")
+            android.util.Log.e(TAG, "Error: Usuario o token no válido")
             Toast.makeText(this, "Error: Sesión no válida", Toast.LENGTH_SHORT).show()
             return
         }
 
         setLoadingPosts(true)
 
-        // Llamada a API con corrutinas
+        // Llamada a repository con corrutinas
         CoroutineScope(Dispatchers.Main).launch {
             try {
-                android.util.Log.d("PROFILE_DEBUG", "=== Cargando publicaciones del usuario ===")
-                android.util.Log.d("PROFILE_DEBUG", "User ID: ${currentUser.id}")
+                android.util.Log.d(TAG, "=== Cargando publicaciones del usuario ===")
+                android.util.Log.d(TAG, "User ID: ${currentUser.id}")
 
                 val result = withContext(Dispatchers.IO) {
-                    publicacionRepository.obtenerPublicacionesUsuarioConvertidas(
+                    // CAMBIO: Usar método que detecta automáticamente online/offline
+                    publicacionRepository.obtenerPublicacionesUsuarioSegunConectividad(
                         idAutor = currentUser.id,
                         incluirBorradores = false, // Solo publicaciones públicas
                         token = token
@@ -136,26 +150,26 @@ class ProfileActivity : AppCompatActivity() {
 
                 result.fold(
                     onSuccess = { posts ->
-                        android.util.Log.d("PROFILE_DEBUG", "  Publicaciones cargadas: ${posts.size}")
+                        android.util.Log.d(TAG, "Publicaciones cargadas: ${posts.size}")
 
                         userPosts.clear()
                         userPosts.addAll(posts)
                         updateUI()
 
                         if (posts.isEmpty()) {
-                            android.util.Log.d("PROFILE_DEBUG", "Usuario no tiene publicaciones")
+                            android.util.Log.d(TAG, "Usuario no tiene publicaciones")
                         } else {
                             Toast.makeText(this@ProfileActivity, "${posts.size} recetas cargadas", Toast.LENGTH_SHORT).show()
                         }
                     },
                     onFailure = { error ->
-                        android.util.Log.e("PROFILE_DEBUG", "  Error al cargar publicaciones", error)
+                        android.util.Log.e(TAG, "Error al cargar publicaciones", error)
                         handlePostsError(error)
                     }
                 )
 
             } catch (e: Exception) {
-                android.util.Log.e("PROFILE_DEBUG", "  Exception al cargar publicaciones", e)
+                android.util.Log.e(TAG, "Exception al cargar publicaciones", e)
                 Toast.makeText(this@ProfileActivity, "Error inesperado: ${e.message}", Toast.LENGTH_LONG).show()
             } finally {
                 setLoadingPosts(false)
@@ -163,15 +177,13 @@ class ProfileActivity : AppCompatActivity() {
         }
     }
 
-
-// NUEVOS MÉTODOS DE SOPORTE
-
+    // NUEVOS MÉTODOS DE SOPORTE
     private fun setLoadingPosts(loading: Boolean) {
         if (loading) {
             // Mostrar loading en el área de posts
             binding.rvUserPosts.visibility = View.GONE
             // Si tienes un ProgressBar para posts: binding.progressBarPosts.visibility = View.VISIBLE
-            android.util.Log.d("PROFILE_DEBUG", "Mostrando loading de posts...")
+            android.util.Log.d(TAG, "Mostrando loading de posts...")
         } else {
             // Ocultar loading
             // binding.progressBarPosts.visibility = View.GONE
@@ -192,44 +204,36 @@ class ProfileActivity : AppCompatActivity() {
                 Toast.makeText(this, "Error de autenticación", Toast.LENGTH_SHORT).show()
             }
             else -> {
-                // Error genérico - usar datos de ejemplo como fallback
-                android.util.Log.w("PROFILE_DEBUG", "Error en API, usando datos de ejemplo")
+                // Error genérico
+                android.util.Log.w(TAG, "Error en carga de publicaciones: ${error.message}")
                 userPosts.clear()
                 updateUI()
-                //Toast.makeText(this, "Error al cargar publicaciones reales, mostrando ejemplos", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Error al cargar publicaciones", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    private fun loadSamplePostsAsFallback() {
-        userPosts.clear()
-        userPosts.addAll(getUserPosts()) // Método original con datos de ejemplo
-        updateUI()
-    }
-
-    private fun getUserPosts(): List<Post> {
-        return Post.getSamplePosts().filter { it.isOwner && !it.isDraft }
-    }
-
     private fun updateUI() {
-        android.util.Log.d("PROFILE_DEBUG", "Actualizando UI - Posts: ${userPosts.size}")
+        android.util.Log.d(TAG, "Actualizando UI - Posts: ${userPosts.size}")
 
         if (userPosts.isEmpty()) {
             binding.rvUserPosts.visibility = View.GONE
             binding.layoutEmptyPosts.visibility = View.VISIBLE
-            android.util.Log.d("PROFILE_DEBUG", "Mostrando estado vacío")
+            android.util.Log.d(TAG, "Mostrando estado vacío")
         } else {
             binding.rvUserPosts.visibility = View.VISIBLE
-            android.util.Log.d("PROFILE_DEBUG", "Mostrando ${userPosts.size} publicaciones")
+            binding.layoutEmptyPosts.visibility = View.GONE // AGREGADO: Ocultar estado vacío
+            android.util.Log.d(TAG, "Mostrando ${userPosts.size} publicaciones")
 
-            //   LOGS PARA DEBUGGING:
+            // LOGS PARA DEBUGGING:
             userPosts.forEachIndexed { index, post ->
-                android.util.Log.d("PROFILE_DEBUG", "Post $index: ${post.title}")
+                android.util.Log.d(TAG, "Post $index: ${post.title}")
+                android.util.Log.d(TAG, "      Es Draft: ${post.isDraft}, API ID: ${post.apiId}")
             }
         }
 
-        //   LOG ANTES DE submitList:
-        android.util.Log.d("PROFILE_DEBUG", "Llamando submitList con ${userPosts.size} elementos")
+        // LOG ANTES DE submitList:
+        android.util.Log.d(TAG, "Llamando submitList con ${userPosts.size} elementos")
         postAdapter.submitList(userPosts.toList())
 
         // Scroll al inicio si hay publicaciones
@@ -240,9 +244,9 @@ class ProfileActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        //   RECARGAR DATOS AL REGRESAR (incluyendo imagen actualizada)
+        // RECARGAR DATOS AL REGRESAR (incluyendo imagen actualizada)
         setupUserInfo()
         loadUserPosts()
-        android.util.Log.d("PROFILE_DEBUG", "ProfileActivity refrescada en onResume")
+        android.util.Log.d(TAG, "ProfileActivity refrescada en onResume")
     }
 }
