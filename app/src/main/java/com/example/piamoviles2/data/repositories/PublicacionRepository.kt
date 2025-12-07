@@ -702,6 +702,41 @@ class PublicacionRepository(
         }
     }
 
+    /**
+     * Elimina una publicación local de SQLite (modo offline)
+     * SOLO para publicaciones NO sincronizadas
+     */
+    suspend fun eliminarPublicacionOffline(localId: Long): Result<String> {
+        return try {
+            Log.d(TAG, "=== eliminarPublicacionOffline ===")
+            Log.d(TAG, "Local ID: $localId")
+
+            val db = database ?: return Result.failure(Exception("Base de datos no disponible"))
+
+            // 1. Verificar que la publicación existe
+            val publicacion = db.publicacionLocalDao().obtenerPorId(localId)
+                ?: return Result.failure(Exception("Publicación no encontrada"))
+
+            // 2. ✅ VALIDACIÓN: Solo eliminar si NO está sincronizada
+            if (publicacion.sincronizado && !publicacion.apiId.isNullOrEmpty()) {
+                Log.e(TAG, "❌ No se puede eliminar: publicación ya sincronizada")
+                return Result.failure(
+                    Exception("No puedes eliminar un borrador sincronizado sin conexión. Conéctate a internet.")
+                )
+            }
+
+            // 3. Eliminar de la base de datos
+            db.publicacionLocalDao().eliminar(publicacion)
+
+            Log.d(TAG, "✅ Publicación local eliminada: ${publicacion.titulo}")
+            Result.success("Borrador eliminado correctamente")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error al eliminar publicación offline", e)
+            Result.failure(e)
+        }
+    }
+
     // OBTENER PUBLICACIONES DE USUARIO
     suspend fun obtenerPublicacionesUsuario(
         idAutor: String,
@@ -1342,7 +1377,8 @@ class PublicacionRepository(
                     isFavorite = false, // En offline no manejamos favoritos
                     isDraft = publicacionLocal.estatus == "borrador",
                     likesCount = 0, // En offline no tenemos conteos
-                    commentsCount = 0 // En offline no tenemos conteos
+                    commentsCount = 0, // En offline no tenemos conteos
+                    isSynced = publicacionLocal.sincronizado
                 )
             }
 

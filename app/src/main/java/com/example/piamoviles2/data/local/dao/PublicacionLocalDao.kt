@@ -35,6 +35,10 @@ interface PublicacionLocalDao {
     @Query("SELECT * FROM publicaciones_pendientes WHERE id = :localId LIMIT 1")
     suspend fun obtenerPorId(localId: Long): PublicacionLocal?
 
+    // Obtiene publicacion local por API ID
+    @Query("SELECT * FROM publicaciones_pendientes WHERE apiId = :apiId LIMIT 1")
+    suspend fun obtenerPorApiId(apiId: String): PublicacionLocal?
+
     // ============================================
     // NUEVO: MÉTODOS PARA FEED OFFLINE
     // ============================================

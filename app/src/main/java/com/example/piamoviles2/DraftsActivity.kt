@@ -161,38 +161,6 @@ class DraftsActivity : AppCompatActivity() {
         }
     }
 
-    private fun handleDraftsError(error: Throwable) {
-        when {
-            error.message?.contains("404") == true -> {
-                // Usuario no tiene borradores
-                draftPosts.clear()
-                updateUI()
-                Toast.makeText(this, "No tienes borradores guardados", Toast.LENGTH_SHORT).show()
-            }
-            error.message?.contains("401") == true || error.message?.contains("403") == true -> {
-                // Error de autenticación
-                Toast.makeText(this, "Error de autenticación", Toast.LENGTH_SHORT).show()
-                // Opcionalmente redirigir a login
-                // sessionManager.logout()
-                // startActivity(Intent(this, MainActivity::class.java))
-                // finish()
-            }
-            else -> {
-                // Error genérico - usar datos de ejemplo como fallback
-                android.util.Log.w(TAG, "Error en API, usando datos de ejemplo")
-                loadSampleDraftsAsFallback()
-                Toast.makeText(this, "Error al cargar borradores reales, mostrando ejemplos", Toast.LENGTH_LONG).show()
-            }
-        }
-    }
-
-    private fun loadSampleDraftsAsFallback() {
-        draftPosts.clear()
-        // Usar datos de ejemplo filtrados por borradores
-        draftPosts.addAll(Post.getSamplePosts().filter { it.isDraft && it.isOwner })
-        updateUI()
-    }
-
     // ============================================
     // ✅ MÉTODO UPDATEUI MEJORADO
     // ============================================
@@ -243,9 +211,27 @@ class DraftsActivity : AppCompatActivity() {
     }
 
     private fun showDeleteDraftDialog(draft: Post) {
+        // 🆕 VERIFICAR SI PUEDE ELIMINARSE OFFLINE
+        if (!networkMonitor.isOnline() && draft.isSynced) {
+            // Mostrar mensaje informativo en lugar de diálogo de confirmación
+            AlertDialog.Builder(this)
+                .setTitle("No disponible offline")
+                .setMessage("Este borrador ya fue sincronizado con el servidor.\n\nPara eliminarlo, necesitas estar conectado a internet.")
+                .setPositiveButton("Entendido", null)
+                .show()
+            return
+        }
+
+        // Diálogo normal de confirmación
+        val mensaje = if (draft.isSynced && networkMonitor.isOnline()) {
+            "¿Estás seguro de que quieres eliminar \"${draft.title}\"?\n\nEste borrador está sincronizado y se eliminará del servidor."
+        } else {
+            "¿Estás seguro de que quieres eliminar \"${draft.title}\"?\n\nEsta acción no se puede deshacer."
+        }
+
         AlertDialog.Builder(this)
             .setTitle("Eliminar borrador")
-            .setMessage("¿Estás seguro de que quieres eliminar \"${draft.title}\"?\n\nEsta acción no se puede deshacer.")
+            .setMessage(mensaje)
             .setPositiveButton("Eliminar") { _, _ ->
                 deleteDraft(draft)
             }
@@ -258,21 +244,83 @@ class DraftsActivity : AppCompatActivity() {
         // Iniciar una corrutina para la operación de red
         CoroutineScope(Dispatchers.Main).launch {
             try {
-                // Eliminar del servidor si tiene un ID de API
-                if (!draft.apiId.isNullOrEmpty()) {
-                    val token = sessionManager.getAccessToken() ?: ""
-                    android.util.Log.d(TAG, "Intentando eliminar borrador del servidor: ${draft.apiId}")
+                val token = sessionManager.getAccessToken() ?: ""
+                when {
+                    // CASO 1: ONLINE + SINCRONIZADO → Eliminar de API
+                    networkMonitor.isOnline() && !draft.apiId.isNullOrEmpty() -> {
+                        android.util.Log.d(TAG, "🌐 ONLINE - Eliminando de API: ${draft.apiId}")
 
-                    val result = withContext(Dispatchers.IO) {
-                        publicacionRepository.eliminarPublicacion(draft.apiId, token)
+                        val result = withContext(Dispatchers.IO) {
+                            publicacionRepository.eliminarPublicacion(draft.apiId, token)
+                        }
+
+                        result.fold(
+                            onSuccess = {
+                                android.util.Log.d(TAG, "✅ Borrador eliminado de API")
+
+                                // También eliminar de SQLite si existe localmente
+                                eliminarDeSQLiteSiExiste(draft.apiId)
+
+                                // Actualizar UI
+                                draftPosts.remove(draft)
+                                updateUI()
+                                Toast.makeText(
+                                    this@DraftsActivity,
+                                    "Borrador \"${draft.title}\" eliminado",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            },
+                            onFailure = { error ->
+                                android.util.Log.e(TAG, "❌ Error al eliminar de API", error)
+                                Toast.makeText(
+                                    this@DraftsActivity,
+                                    "Error al eliminar: ${error.message}",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        )
                     }
 
-                    result.onSuccess {
-                        android.util.Log.d(TAG, "✅ Borrador eliminado del servidor exitosamente.")
-                    }.onFailure { error ->
-                        android.util.Log.e(TAG, "❌ Error al eliminar borrador del servidor.", error)
-                        // Opcional: Mostrar error pero continuar con la eliminación local
-                        Toast.makeText(this@DraftsActivity, "Error al sincronizar eliminación: ${error.message}", Toast.LENGTH_SHORT).show()
+                    // CASO 2: OFFLINE + NO SINCRONIZADO → Eliminar de SQLite
+                    !networkMonitor.isOnline() && !draft.isSynced -> {
+                        android.util.Log.d(TAG, "📵 OFFLINE - Eliminando borrador local ID: ${draft.id}")
+
+                        val result = withContext(Dispatchers.IO) {
+                            publicacionRepository.eliminarPublicacionOffline(draft.id.toLong())
+                        }
+
+                        result.fold(
+                            onSuccess = {
+                                android.util.Log.d(TAG, "✅ Borrador local eliminado")
+
+                                // Actualizar UI
+                                draftPosts.remove(draft)
+                                updateUI()
+                                Toast.makeText(
+                                    this@DraftsActivity,
+                                    "Borrador \"${draft.title}\" eliminado",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            },
+                            onFailure = { error ->
+                                android.util.Log.e(TAG, "❌ Error al eliminar de SQLite", error)
+                                Toast.makeText(
+                                    this@DraftsActivity,
+                                    "Error al eliminar: ${error.message}",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        )
+                    }
+
+                    // CASO 3: OFFLINE + SINCRONIZADO → NO PERMITIR
+                    !networkMonitor.isOnline() && draft.isSynced -> {
+                        android.util.Log.w(TAG, "⚠️ OFFLINE - No se puede eliminar borrador sincronizado")
+                        Toast.makeText(
+                            this@DraftsActivity,
+                            "No puedes eliminar un borrador sincronizado sin conexión. Conéctate a internet.",
+                            Toast.LENGTH_LONG
+                        ).show()
                     }
                 }
 
@@ -285,6 +333,20 @@ class DraftsActivity : AppCompatActivity() {
                 android.util.Log.e(TAG, "❌ Excepción al eliminar borrador", e)
                 Toast.makeText(this@DraftsActivity, "Error inesperado al eliminar: ${e.message}", Toast.LENGTH_LONG).show()
             }
+        }
+    }
+
+    private suspend fun eliminarDeSQLiteSiExiste(apiId: String) {
+        try {
+            withContext(Dispatchers.IO) {
+                val db = publicacionRepository.database
+                db?.publicacionLocalDao()?.obtenerPorApiId(apiId)?.let { publicacion ->
+                    db.publicacionLocalDao().eliminar(publicacion)
+                    android.util.Log.d(TAG, "✅ También eliminado de SQLite local")
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "No se pudo eliminar de SQLite: ${e.message}")
         }
     }
 

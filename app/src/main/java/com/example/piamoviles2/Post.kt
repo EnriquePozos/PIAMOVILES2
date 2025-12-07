@@ -15,7 +15,8 @@ data class Post(
     var isFavorite: Boolean = false, // Si está marcado como favorito
     var isDraft: Boolean = false, // Si es un borrador (no publicado)
     val likesCount: Int = 0,
-    val commentsCount: Int = 0
+    val commentsCount: Int = 0,
+    val isSynced: Boolean = false // Si la publicación está sincronizada con la API
 ) {
     companion object {
         /**
