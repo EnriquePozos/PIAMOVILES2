@@ -6,7 +6,7 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.piamoviles2.databinding.ItemDraftBinding
-import com.example.piamoviles2.utils.ImageUtils //   AGREGAR IMPORT
+import com.example.piamoviles2.utils.ImageUtils
 
 /**
  * Adaptador especializado para borradores con funcionalidades de editar y eliminar
@@ -41,6 +41,8 @@ class DraftAdapter(
         fun bind(draft: Post) {
             android.util.Log.d(TAG, "Binding draft: ${draft.title}")
             android.util.Log.d(TAG, "Draft Image URL: ${draft.imageUrl}")
+            android.util.Log.d(TAG, "Draft API ID: ${draft.apiId}")
+            android.util.Log.d(TAG, "Draft isSynced: ${draft.isSynced}")
 
             // Configurar datos del borrador
             binding.tvDraftTitle.text = draft.title
@@ -57,47 +59,55 @@ class DraftAdapter(
             binding.tvDraftDate.text = draft.createdAt
 
             // ============================================
-            //   CARGAR IMAGEN REAL CON IMAGEUTILS
+            // CARGAR IMAGEN - SOPORTE COMPLETO OFFLINE/ONLINE
             // ============================================
-            if (ImageUtils.isValidImageUrl(draft.imageUrl)) {
-                // Cargar imagen real de la API (URL de Cloudinary)
-                ImageUtils.loadPostImage(
-                    context = binding.root.context,
-                    imageUrl = draft.imageUrl,
-                    imageView = binding.ivDraftImage,
-                    showPlaceholder = true
-                )
-                android.util.Log.d(TAG, "  Cargando imagen de URL: ${draft.imageUrl}")
-            } else {
-                // ============================================
-                // FALLBACK: IMÁGENES LOCALES PARA DATOS DE EJEMPLO
-                // ============================================
-                val placeholderResId = when (draft.imageUrl) {
-                    "draft_pozole" -> R.mipmap.ic_launcher
-                    "draft_chiles" -> R.mipmap.ic_launcher
-                    "draft_mole" -> R.mipmap.ic_launcher
-                    "sample_tacos" -> R.mipmap.ic_launcher
-                    "sample_sandwich" -> R.mipmap.ic_launcher
-                    "sample_salad" -> R.mipmap.ic_launcher
-                    "sample_pasta" -> R.mipmap.ic_launcher
-                    "default_recipe" -> R.mipmap.ic_launcher
-                    else -> R.mipmap.ic_launcher
+            when {
+                // 1. ARCHIVOS LOCALES (modo offline)
+                draft.imageUrl.startsWith("file://") || ImageUtils.isLocalImagePath(draft.imageUrl) -> {
+                    android.util.Log.d(TAG, "Cargando imagen LOCAL: ${draft.imageUrl}")
+                    ImageUtils.loadLocalImage(
+                        context = binding.root.context,
+                        localPath = draft.imageUrl,
+                        imageView = binding.ivDraftImage,
+                        showPlaceholder = true
+                    )
                 }
 
-                binding.ivDraftImage.setImageResource(placeholderResId)
-                android.util.Log.d(TAG, "📱 Usando placeholder para: ${draft.imageUrl}")
+                // 2. URLs REMOTAS (modo online - API/Cloudinary)
+                ImageUtils.isValidImageUrl(draft.imageUrl) -> {
+                    android.util.Log.d(TAG, "Cargando imagen REMOTA: ${draft.imageUrl}")
+                    ImageUtils.loadPostImage(
+                        context = binding.root.context,
+                        imageUrl = draft.imageUrl,
+                        imageView = binding.ivDraftImage,
+                        showPlaceholder = true
+                    )
+                }
+
+                // 3. PLACEHOLDERS para mock data o fallback
+                else -> {
+                    android.util.Log.d(TAG, "Usando PLACEHOLDER para: ${draft.imageUrl}")
+                    loadPlaceholderImage(draft.imageUrl)
+                }
             }
 
             // ============================================
-            // ESTILO VISUAL PARA BORRADORES (OPCIONAL)
+            // ESTILO VISUAL PARA BORRADORES
             // ============================================
             // Aplicar menor opacidad para indicar que es borrador
             binding.ivDraftImage.alpha = 0.8f
 
-            // Click listeners para botones
+            // ============================================
+            // CLICK LISTENERS PARA BOTONES
+            // ============================================
             binding.btnEditDraft.setOnClickListener {
                 android.util.Log.d(TAG, "Editando draft: ${draft.title}")
                 onEditDraft(draft)
+            }
+
+            binding.btnDeleteDraft.setOnClickListener {
+                android.util.Log.d(TAG, "Eliminando draft: ${draft.title}")
+                onDeleteDraft(draft)
             }
 
             // Click listener para toda la card (también edita)
@@ -106,26 +116,42 @@ class DraftAdapter(
                 onDraftClick(draft)
             }
 
-            // 🆕 DESHABILITAR BOTÓN DE ELIMINAR SI ESTÁ SINCRONIZADO Y OFFLINE
-            binding.btnDeleteDraft.setOnClickListener {
-                android.util.Log.d(TAG, "Eliminando draft: ${draft.title}")
-                onDeleteDraft(draft)
-            }
-
-            // 🆕 INDICADOR VISUAL PARA BORRADORES SINCRONIZADOS
+            // ============================================
+            // INDICADOR VISUAL PARA BORRADORES SINCRONIZADOS
+            // ============================================
             if (draft.isSynced) {
                 // Mostrar indicador de sincronización
                 binding.btnEditDraft.alpha = 1.0f
                 binding.btnDeleteDraft.alpha = 1.0f
 
-                android.util.Log.d(TAG, "✅ Borrador sincronizado: ${draft.title}")
+                android.util.Log.d(TAG, "Borrador sincronizado: ${draft.title}")
             } else {
                 // Borrador local no sincronizado
                 binding.btnEditDraft.alpha = 1.0f
                 binding.btnDeleteDraft.alpha = 1.0f
 
-                android.util.Log.d(TAG, "📱 Borrador local: ${draft.title}")
+                android.util.Log.d(TAG, "Borrador local: ${draft.title}")
             }
+        }
+
+        /**
+         * Cargar imagen placeholder para mock data o cuando no hay imagen
+         */
+        private fun loadPlaceholderImage(imageUrl: String) {
+            val placeholderResId = when (imageUrl) {
+                "draft_pozole" -> R.mipmap.ic_launcher
+                "draft_chiles" -> R.mipmap.ic_launcher
+                "draft_mole" -> R.mipmap.ic_launcher
+                "sample_tacos" -> R.mipmap.ic_launcher
+                "sample_sandwich" -> R.mipmap.ic_launcher
+                "sample_salad" -> R.mipmap.ic_launcher
+                "sample_pasta" -> R.mipmap.ic_launcher
+                "default_recipe" -> R.mipmap.ic_launcher
+                else -> R.mipmap.ic_launcher
+            }
+
+            binding.ivDraftImage.setImageResource(placeholderResId)
+            android.util.Log.d(TAG, "Placeholder aplicado: $imageUrl -> $placeholderResId")
         }
     }
 
