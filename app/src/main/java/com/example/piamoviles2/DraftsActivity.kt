@@ -253,17 +253,39 @@ class DraftsActivity : AppCompatActivity() {
             .show()
     }
 
+    // Convertida a función suspendida para usar corrutinas
     private fun deleteDraft(draft: Post) {
-        // TODO: En el futuro, eliminar del servidor usando API
-        // if (!draft.apiId.isNullOrEmpty()) {
-        //     deleteDraftFromServer(draft.apiId)
-        // }
+        // Iniciar una corrutina para la operación de red
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                // Eliminar del servidor si tiene un ID de API
+                if (!draft.apiId.isNullOrEmpty()) {
+                    val token = sessionManager.getAccessToken() ?: ""
+                    android.util.Log.d(TAG, "Intentando eliminar borrador del servidor: ${draft.apiId}")
 
-        // Remover el borrador de la lista local
-        draftPosts.remove(draft)
-        updateUI()
+                    val result = withContext(Dispatchers.IO) {
+                        publicacionRepository.eliminarPublicacion(draft.apiId, token)
+                    }
 
-        Toast.makeText(this, "Borrador \"${draft.title}\" eliminado", Toast.LENGTH_SHORT).show()
+                    result.onSuccess {
+                        android.util.Log.d(TAG, "✅ Borrador eliminado del servidor exitosamente.")
+                    }.onFailure { error ->
+                        android.util.Log.e(TAG, "❌ Error al eliminar borrador del servidor.", error)
+                        // Opcional: Mostrar error pero continuar con la eliminación local
+                        Toast.makeText(this@DraftsActivity, "Error al sincronizar eliminación: ${error.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+
+                // Remover el borrador de la lista local y actualizar UI
+                draftPosts.remove(draft)
+                updateUI()
+                Toast.makeText(this@DraftsActivity, "Borrador \"${draft.title}\" eliminado", Toast.LENGTH_SHORT).show()
+
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "❌ Excepción al eliminar borrador", e)
+                Toast.makeText(this@DraftsActivity, "Error inesperado al eliminar: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     override fun onResume() {

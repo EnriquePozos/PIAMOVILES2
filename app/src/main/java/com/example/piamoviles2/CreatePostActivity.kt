@@ -805,8 +805,8 @@ class CreatePostActivity : AppCompatActivity() {
             return false
         }
 
-        if (title.length < 3) {
-            binding.etRecipeTitle.error = "El título debe tener al menos 3 caracteres"
+        if (title.length < 5) {
+            binding.etRecipeTitle.error = "El título debe tener al menos 5 caracteres"
             binding.etRecipeTitle.requestFocus()
             return false
         }

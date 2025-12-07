@@ -1199,7 +1199,8 @@ class PublicacionRepository(
 
             Log.d(TAG, "Publicaciones locales encontradas: ${publicacionesLocales.size}")
 
-            val posts = publicacionesLocales.mapIndexed { index, publicacionLocal ->
+            val posts = publicacionesLocales.mapNotNull { publicacionLocal ->
+                if (publicacionLocal.estatus == "borrador") return@mapNotNull null
                 // Convertir PublicacionLocal a Post
                 Post(
                     id = publicacionLocal.id.toInt(), // Usar el ID local
