@@ -20,13 +20,17 @@ import com.example.piamoviles2.data.local.dao.*
 import com.example.piamoviles2.utils.NetworkMonitor
 import org.json.JSONArray
 
+// Session manager para obtener usuario actual
+import com.example.piamoviles2.utils.SessionManager
+
 class PublicacionRepository(
-    private val context: Context? = null, // NUEVO: Context para acceder a Room
+    private val context: Context, // NUEVO: Context para acceder a Room
     private val apiService: ApiService = NetworkConfig.apiService
 ) {
+    private val sessionManager = SessionManager(context)
 
     // COMPONENTES PARA MODO OFFLINE
-    private val database: AppDatabase? by lazy {
+    internal val database: AppDatabase? by lazy {
         context?.let { AppDatabase.getDatabase(it) }
     }
 
@@ -571,6 +575,108 @@ class PublicacionRepository(
         }
     }
 
+    suspend fun actualizarPublicacionOffline(
+        localId: Long,
+        titulo: String,
+        descripcion: String,
+        archivosMultimedia: List<File>,
+        estatus: String? = "borrador"
+    ): Result<com.example.piamoviles2.data.models.PublicacionDetalle> {
+        return try {
+            android.util.Log.d(TAG, "=== actualizarBorradorEnSQLite ===")
+            android.util.Log.d(TAG, "Local ID: $localId")
+            android.util.Log.d(TAG, "Nuevos archivos: ${archivosMultimedia.size}")
+
+            val db = this.database
+                ?: return Result.failure(Exception("Base de datos no disponible"))
+
+            val currentUser = sessionManager.getCurrentUser()
+
+            // 1. Obtener la publicación actual
+            val publicacionActual = db.publicacionLocalDao().obtenerPublicacionesParaFeed(currentUser?.id)
+                .find { it.id == localId }
+                ?: return Result.failure(Exception("Borrador no encontrado"))
+
+            // 2. Procesar nuevos archivos multimedia
+            val nuevoMultimediaJson = if (archivosMultimedia.isNotEmpty()) {
+                // Copiar archivos a directorio persistente
+                val ctx = this.context
+                    ?: return Result.failure(Exception("Context no disponible"))
+
+                val offlineDir = File(ctx.filesDir, "multimedia_offline")
+                if (!offlineDir.exists()) {
+                    offlineDir.mkdirs()
+                }
+
+                val archivosPersistentes = archivosMultimedia.mapIndexed { index, originalFile ->
+                    try {
+                        val timestamp = System.currentTimeMillis()
+                        val extension = originalFile.extension.ifEmpty { "jpg" }
+                        val fileName = "multimedia_updated_${timestamp}_$index.$extension"
+                        val destFile = File(offlineDir, fileName)
+
+                        originalFile.copyTo(destFile, overwrite = true)
+
+                        mapOf(
+                            "tipo" to this.getMediaTypeForFile(originalFile),
+                            "ruta" to destFile.absolutePath,
+                            "nombre" to fileName
+                        )
+                    } catch (e: Exception) {
+                        android.util.Log.e(TAG, "Error al copiar archivo $index", e)
+                        null
+                    }
+                }.filterNotNull()
+
+                if (archivosPersistentes.isNotEmpty()) {
+                    org.json.JSONArray(archivosPersistentes).toString()
+                } else {
+                    publicacionActual.multimediaJson // Mantener multimedia actual
+                }
+            } else {
+                publicacionActual.multimediaJson // No hay nuevos archivos, mantener actuales
+            }
+
+            // 3. Actualizar en SQLite
+            val publicacionActualizada = publicacionActual.copy(
+                titulo = titulo,
+                descripcion = descripcion,
+                estatus = estatus?: "borrador",
+                multimediaJson = nuevoMultimediaJson,
+                fechaCreacion = System.currentTimeMillis() // Actualizar timestamp
+            )
+
+            db.publicacionLocalDao().actualizar(publicacionActualizada)
+
+            android.util.Log.d(TAG, "✅ Borrador actualizado en SQLite")
+
+            // 4. Crear respuesta simulada
+            val fechaActual = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
+
+            val publicacionDetalle = PublicacionDetalle(
+                id = "offline_${publicacionActualizada.id}",
+                titulo = titulo,
+                descripcion = descripcion,
+                fechaCreacion = fechaActual,
+                fechaPublicacion = fechaActual,
+                fechaModificacion = fechaActual,
+                estatus = estatus?: "borrador",
+                idAutor = publicacionActualizada.idAutor,
+                autorAlias = "Usuario",
+                autorFoto = null,
+                totalComentarios = 0,
+                totalReacciones = 0,
+                multimedia = emptyList()
+            )
+
+            Result.success(publicacionDetalle)
+
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "❌ Error al actualizar borrador SQLite", e)
+            Result.failure(e)
+        }
+    }
+
     // ELIMINAR PUBLICACIÓN
     suspend fun eliminarPublicacion(idPublicacion: String, token: String): Result<String> {
         return try {
@@ -592,6 +698,41 @@ class PublicacionRepository(
             }
         } catch (e: Exception) {
             Log.e(TAG, "  Exception: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Elimina una publicación local de SQLite (modo offline)
+     * SOLO para publicaciones NO sincronizadas
+     */
+    suspend fun eliminarPublicacionOffline(localId: Long): Result<String> {
+        return try {
+            Log.d(TAG, "=== eliminarPublicacionOffline ===")
+            Log.d(TAG, "Local ID: $localId")
+
+            val db = database ?: return Result.failure(Exception("Base de datos no disponible"))
+
+            // 1. Verificar que la publicación existe
+            val publicacion = db.publicacionLocalDao().obtenerPorId(localId)
+                ?: return Result.failure(Exception("Publicación no encontrada"))
+
+            // 2. ✅ VALIDACIÓN: Solo eliminar si NO está sincronizada
+            if (publicacion.sincronizado && !publicacion.apiId.isNullOrEmpty()) {
+                Log.e(TAG, "❌ No se puede eliminar: publicación ya sincronizada")
+                return Result.failure(
+                    Exception("No puedes eliminar un borrador sincronizado sin conexión. Conéctate a internet.")
+                )
+            }
+
+            // 3. Eliminar de la base de datos
+            db.publicacionLocalDao().eliminar(publicacion)
+
+            Log.d(TAG, "✅ Publicación local eliminada: ${publicacion.titulo}")
+            Result.success("Borrador eliminado correctamente")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error al eliminar publicación offline", e)
             Result.failure(e)
         }
     }
@@ -1087,11 +1228,14 @@ class PublicacionRepository(
             Log.d(TAG, "=== obtenerFeedOfflineConvertido ===")
 
             val db = database ?: return Result.failure(Exception("Base de datos no disponible"))
-            val publicacionesLocales = db.publicacionLocalDao().obtenerPublicacionesParaFeed()
+            val currentUserId = sessionManager.getCurrentUser()?.id ?: ""
+
+            val publicacionesLocales = db.publicacionLocalDao().obtenerPublicacionesParaFeed(currentUserId)
 
             Log.d(TAG, "Publicaciones locales encontradas: ${publicacionesLocales.size}")
 
-            val posts = publicacionesLocales.mapIndexed { index, publicacionLocal ->
+            val posts = publicacionesLocales.mapNotNull { publicacionLocal ->
+                if (publicacionLocal.estatus == "borrador") return@mapNotNull null
                 // Convertir PublicacionLocal a Post
                 Post(
                     id = publicacionLocal.id.toInt(), // Usar el ID local
@@ -1202,8 +1346,10 @@ class PublicacionRepository(
 
             val db = database ?: return Result.failure(Exception("Base de datos no disponible"))
 
+            val currentUserId = sessionManager.getCurrentUser()?.id ?: ""
+
             // Obtener todas las publicaciones locales (ya son del usuario activo)
-            val publicacionesLocales = db.publicacionLocalDao().obtenerPublicacionesParaFeed()
+            val publicacionesLocales = db.publicacionLocalDao().obtenerPublicacionesParaFeed(currentUserId)
 
             Log.d(TAG, "Total publicaciones offline encontradas: ${publicacionesLocales.size}")
 
@@ -1231,7 +1377,8 @@ class PublicacionRepository(
                     isFavorite = false, // En offline no manejamos favoritos
                     isDraft = publicacionLocal.estatus == "borrador",
                     likesCount = 0, // En offline no tenemos conteos
-                    commentsCount = 0 // En offline no tenemos conteos
+                    commentsCount = 0, // En offline no tenemos conteos
+                    isSynced = publicacionLocal.sincronizado
                 )
             }
 

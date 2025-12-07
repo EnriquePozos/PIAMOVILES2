@@ -100,15 +100,31 @@ class DraftAdapter(
                 onEditDraft(draft)
             }
 
+            // Click listener para toda la card (también edita)
+            binding.root.setOnClickListener {
+                android.util.Log.d(TAG, "Click en draft: ${draft.title}")
+                onDraftClick(draft)
+            }
+
+            // 🆕 DESHABILITAR BOTÓN DE ELIMINAR SI ESTÁ SINCRONIZADO Y OFFLINE
             binding.btnDeleteDraft.setOnClickListener {
                 android.util.Log.d(TAG, "Eliminando draft: ${draft.title}")
                 onDeleteDraft(draft)
             }
 
-            // Click listener para toda la card (también edita)
-            binding.root.setOnClickListener {
-                android.util.Log.d(TAG, "Click en draft: ${draft.title}")
-                onDraftClick(draft)
+            // 🆕 INDICADOR VISUAL PARA BORRADORES SINCRONIZADOS
+            if (draft.isSynced) {
+                // Mostrar indicador de sincronización
+                binding.btnEditDraft.alpha = 1.0f
+                binding.btnDeleteDraft.alpha = 1.0f
+
+                android.util.Log.d(TAG, "✅ Borrador sincronizado: ${draft.title}")
+            } else {
+                // Borrador local no sincronizado
+                binding.btnEditDraft.alpha = 1.0f
+                binding.btnDeleteDraft.alpha = 1.0f
+
+                android.util.Log.d(TAG, "📱 Borrador local: ${draft.title}")
             }
         }
     }

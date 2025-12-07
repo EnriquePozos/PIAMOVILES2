@@ -22,6 +22,8 @@ import com.bumptech.glide.request.transition.Transition
 import com.example.piamoviles2.data.models.MultimediaResponse
 import java.io.InputStream
 import java.net.URL
+import org.json.JSONArray
+import com.example.piamoviles2.utils.NetworkMonitor
 
 class CreatePostActivity : AppCompatActivity() {
 
@@ -39,11 +41,15 @@ class CreatePostActivity : AppCompatActivity() {
     private var editingPostId = -1
     private var editingDraftApiId: String? = null // 🆕 API ID del borrador a editar
 
+    private var isReadOnlyMode = false
+
     // ============================================
     // VARIABLES PARA API INTEGRATION
     // ============================================
     private lateinit var publicacionRepository: PublicacionRepository
     private lateinit var sessionManager: SessionManager
+
+    private lateinit var networkMonitor: NetworkMonitor
     private var isLoading = false
 
     companion object {
@@ -57,6 +63,7 @@ class CreatePostActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        networkMonitor = NetworkMonitor(this)
         binding = ActivityCreatePostBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -232,6 +239,11 @@ class CreatePostActivity : AppCompatActivity() {
     }
 
     private fun handleBackNavigation() {
+        if (isReadOnlyMode) {
+            finish()
+            return
+        }
+
         // Verificar si hay cambios sin guardar
         val title = binding.etRecipeTitle.text.toString().trim()
         val description = binding.etRecipeDescription.text.toString().trim()
@@ -266,15 +278,15 @@ class CreatePostActivity : AppCompatActivity() {
         editingDraftApiId = intent.getStringExtra(EXTRA_DRAFT_API_ID)
 
         if (editingDraftApiId != null) {
-            // Editar borrador usando API ID
+            // Editar borrador usando API ID (ONLINE)
             isEditMode = true
             binding.tvScreenTitle.text = "Editar receta"
-            android.util.Log.d(TAG, "Modo edición: Borrador API ID = $editingDraftApiId")
+            android.util.Log.d(TAG, "Modo edición ONLINE: Borrador API ID = $editingDraftApiId")
             loadDraftFromApi(editingDraftApiId!!)
             return
         }
 
-        // Verificar ID local (legacy)
+        // Verificar ID local (OFFLINE o legacy)
         editingPostId = intent.getIntExtra(EXTRA_DRAFT_ID, -1)
         if (editingPostId == -1) {
             editingPostId = intent.getIntExtra(EXTRA_POST_ID, -1)
@@ -283,8 +295,9 @@ class CreatePostActivity : AppCompatActivity() {
         if (editingPostId != -1) {
             isEditMode = true
             binding.tvScreenTitle.text = "Editar receta"
-            android.util.Log.d(TAG, "Modo edición: Post local ID = $editingPostId")
-            loadPostData(editingPostId)
+            android.util.Log.d(TAG, "Modo edición OFFLINE: Post local ID = $editingPostId")
+            // CAMBIO: Usar método para SQLite en lugar de mock data
+            loadDraftFromSQLite(editingPostId.toLong())
         } else {
             // Modo creación
             android.util.Log.d(TAG, "Modo creación: Nueva receta")
@@ -442,6 +455,177 @@ class CreatePostActivity : AppCompatActivity() {
             })
     }
 
+    private fun loadDraftFromSQLite(localId: Long) {
+        android.util.Log.d(TAG, "=== Cargando borrador desde SQLite ===")
+        android.util.Log.d(TAG, "Local ID: $localId")
+
+        setLoading(true)
+
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    // Obtener la publicación local desde la base de datos
+                    val db = publicacionRepository.database
+                        ?: return@withContext Result.failure<com.example.piamoviles2.data.local.entities.PublicacionLocal>(
+                            Exception("Base de datos no disponible")
+                        )
+
+                    try {
+                        // 🆕 USAR MÉTODO ESPECÍFICO PARA OBTENER POR ID
+                        val publicacionLocal = db.publicacionLocalDao().obtenerPorId(localId)
+
+                        if (publicacionLocal != null) {
+                            Result.success(publicacionLocal)
+                        } else {
+                            Result.failure(Exception("Borrador no encontrado en SQLite"))
+                        }
+                    } catch (e: Exception) {
+                        Result.failure(e)
+                    }
+                }
+
+                result.fold(
+                    onSuccess = { publicacionLocal ->
+                        android.util.Log.d(TAG, "✅ Borrador SQLite cargado: ${publicacionLocal.titulo}")
+
+                        // 🆕 VERIFICAR SI YA ESTÁ SINCRONIZADO
+                        if (publicacionLocal.sincronizado && !publicacionLocal.apiId.isNullOrEmpty()) {
+                            android.util.Log.d(TAG, "⚠️ Borrador YA sincronizado - Modo SOLO LECTURA")
+                            isReadOnlyMode = true
+                            editingDraftApiId = publicacionLocal.apiId // Guardar API ID
+                        } else {
+                            android.util.Log.d(TAG, "✅ Borrador NO sincronizado - Modo EDITABLE")
+                            isReadOnlyMode = false
+                        }
+
+                        // Cargar datos en la interfaz
+                        binding.etRecipeTitle.setText(publicacionLocal.titulo)
+                        binding.etRecipeDescription.setText(publicacionLocal.descripcion)
+
+                        // Cargar imágenes locales si existen
+                        publicacionLocal.multimediaJson?.let { multimediaJson ->
+                            loadMultimediaFromSQLite(multimediaJson)
+                        }
+
+                        // 🆕 Actualizar UI según modo (editable o solo lectura)
+                        if (isReadOnlyMode) {
+                            setupReadOnlyMode()
+                        } else {
+                            updateUIForEditMode()
+                        }
+                    },
+                    onFailure = { error ->
+                        android.util.Log.e(TAG, "❌ Error al cargar borrador SQLite", error)
+                        Toast.makeText(
+                            this@CreatePostActivity,
+                            "Error al cargar borrador: ${error.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        finish()
+                    }
+                )
+
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "❌ Exception al cargar borrador SQLite", e)
+                Toast.makeText(
+                    this@CreatePostActivity,
+                    "Error inesperado: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+                finish()
+            } finally {
+                setLoading(false)
+            }
+        }
+    }
+
+    // ============================================
+// 🆕 CARGAR MULTIMEDIA DESDE JSON LOCAL
+// ============================================
+    private fun loadMultimediaFromSQLite(multimediaJson: String) {
+        android.util.Log.d(TAG, "=== loadMultimediaFromSQLite ===")
+        android.util.Log.d(TAG, "JSON: $multimediaJson")
+
+        try {
+            val jsonArray = org.json.JSONArray(multimediaJson)
+
+            for (i in 0 until jsonArray.length()) {
+                val obj = jsonArray.getJSONObject(i)
+                val tipo = obj.getString("tipo")
+                val ruta = obj.getString("ruta")
+                val nombre = obj.optString("nombre", "archivo")
+
+                android.util.Log.d(TAG, "Procesando archivo local: tipo=$tipo, ruta=$ruta")
+
+                val file = java.io.File(ruta)
+                if (file.exists()) {
+                    when {
+                        tipo.startsWith("image/") -> {
+                            // Cargar imagen desde archivo
+                            loadImageFromLocalFile(file)
+                        }
+                        tipo.startsWith("video/") -> {
+                            // Cargar video desde archivo
+                            loadVideoFromLocalFile(file)
+                        }
+                        else -> {
+                            android.util.Log.w(TAG, "Tipo de archivo desconocido: $tipo")
+                        }
+                    }
+                } else {
+                    android.util.Log.w(TAG, "Archivo no existe: $ruta")
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error al procesar multimedia JSON", e)
+        }
+    }
+
+    // ============================================
+// 🆕 HELPERS PARA CARGAR ARCHIVOS LOCALES
+// ============================================
+    private fun loadImageFromLocalFile(file: java.io.File) {
+        try {
+            val bitmap = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
+            if (bitmap != null) {
+                val item = MultimediaItem.crearImagen(bitmap)
+                item.file = file // Asignar archivo existente
+
+                multimediaAdapter.addItem(item)
+                updateEmptyState()
+
+                android.util.Log.d(TAG, "✅ Imagen local cargada: ${file.name}")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error al cargar imagen local", e)
+        }
+    }
+
+    private fun loadVideoFromLocalFile(file: java.io.File) {
+        try {
+            // Crear thumbnail del video
+            val thumbnail = com.bumptech.glide.Glide.with(this)
+                .asBitmap()
+                .load(file)
+                .submit()
+                .get() // Sincrono para simplificar
+
+            val item = MultimediaItem.crearVideo(
+                uri = android.net.Uri.fromFile(file),
+                thumbnail = thumbnail
+            )
+            item.file = file // Asignar archivo existente
+
+            multimediaAdapter.addItem(item)
+            updateEmptyState()
+
+            android.util.Log.d(TAG, "✅ Video local cargado: ${file.name}")
+
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error al cargar video local", e)
+        }
+    }
+
     // ============================================
 // 🆕 DESCARGAR VIDEO A ARCHIVO TEMPORAL
 // ============================================
@@ -496,6 +680,40 @@ class CreatePostActivity : AppCompatActivity() {
         binding.btnPublish.text = "Publicar receta"
 
         android.util.Log.d(TAG, "UI actualizada para modo edición")
+    }
+
+    // Solo lectura si la publicacion ya se sincronizó con la API
+    private fun setupReadOnlyMode() {
+        android.util.Log.d(TAG, "=== Configurando modo SOLO LECTURA ===")
+
+        // Cambiar título de pantalla
+        binding.tvScreenTitle.text = "Ver borrador (sincronizado)"
+
+        // 🔒 DESHABILITAR CAMPOS DE TEXTO
+        binding.etRecipeTitle.isEnabled = false
+        binding.etRecipeDescription.isEnabled = false
+
+        // 🔒 DESHABILITAR BOTÓN DE AGREGAR MULTIMEDIA
+        binding.btnAddMultimedia.isEnabled = false
+        binding.btnAddMultimedia.alpha = 0.5f
+
+        // 🔒 DESHABILITAR BOTONES DE ACCIÓN
+        binding.btnSaveDraft.isEnabled = false
+        binding.btnSaveDraft.alpha = 0.5f
+        binding.btnSaveDraft.text = "Ya sincronizado"
+
+        binding.btnPublish.isEnabled = false
+        binding.btnPublish.alpha = 0.5f
+        binding.btnPublish.text = "Editar en línea"
+
+        // 📢 MOSTRAR MENSAJE INFORMATIVO
+        Toast.makeText(
+            this,
+            "Este borrador ya fue sincronizado. Para editarlo, conéctate a internet.",
+            Toast.LENGTH_LONG
+        ).show()
+
+        android.util.Log.d(TAG, "✅ Modo solo lectura activado")
     }
 
     private fun loadPostData(postId: Int) {
@@ -587,8 +805,8 @@ class CreatePostActivity : AppCompatActivity() {
             return false
         }
 
-        if (title.length < 3) {
-            binding.etRecipeTitle.error = "El título debe tener al menos 3 caracteres"
+        if (title.length < 5) {
+            binding.etRecipeTitle.error = "El título debe tener al menos 5 caracteres"
             binding.etRecipeTitle.requestFocus()
             return false
         }
@@ -612,6 +830,15 @@ class CreatePostActivity : AppCompatActivity() {
     // 🆕 MÉTODO SAVEEDRAFT MEJORADO (CREAR/ACTUALIZAR)
     // ============================================
     private fun saveDraft() {
+        if (isReadOnlyMode) {
+            Toast.makeText(
+                this,
+                "No puedes editar un borrador sincronizado. Conéctate a internet para editarlo.",
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+
         if (!validateForm() || isLoading) return
 
         val title = binding.etRecipeTitle.text.toString().trim()
@@ -631,29 +858,44 @@ class CreatePostActivity : AppCompatActivity() {
             try {
                 val archivosMultimedia = multimediaAdapter.getFiles() // ✅ OBTENER ARCHIVOS DEL ADAPTER
 
-                val result = if (isEditMode && editingDraftApiId != null) {
-                    android.util.Log.d(TAG, "=== Actualizando borrador existente ===")
-                    withContext(Dispatchers.IO) {
-                        publicacionRepository.actualizarPublicacion(
-                            idPublicacion = editingDraftApiId!!,
-                            titulo = title,
-                            descripcion = description,
-                            estatus = "borrador",
-                            imagenes = archivosMultimedia.ifEmpty { null }, // ✅ USAR ARCHIVOS DEL ADAPTER
-                            token = token
-                        )
+                val result = when {
+                    isEditMode && networkMonitor.isOnline() && editingDraftApiId != null -> {
+                        android.util.Log.d(TAG, "=== Actualizando borrador ONLINE (API) ===")
+                        withContext(Dispatchers.IO) {
+                            publicacionRepository.actualizarPublicacion(
+                                idPublicacion = editingDraftApiId!!,
+                                titulo = title,
+                                descripcion = description,
+                                estatus = "borrador",
+                                imagenes = archivosMultimedia.ifEmpty { null },
+                                token = token
+                            )
+                        }
                     }
-                } else {
-                    android.util.Log.d(TAG, "=== Creando nuevo borrador ===")
-                    withContext(Dispatchers.IO) {
-                        publicacionRepository.crearPublicacion(
-                            titulo = title,
-                            descripcion = description,
-                            estatus = "borrador",
-                            idAutor = currentUser.id,
-                            imagenes = archivosMultimedia.ifEmpty { null }, // ✅ USAR ARCHIVOS DEL ADAPTER
-                            token = token
-                        )
+                     isEditMode && !networkMonitor.isOnline() && editingPostId != -1 -> {
+                         android.util.Log.d(TAG, "=== Actualizando borrador OFFLINE (SQLite) ===")
+                         withContext(Dispatchers.IO) {
+                             publicacionRepository.actualizarPublicacionOffline(
+                                 localId = editingPostId.toLong(),
+                                 titulo = title,
+                                 descripcion = description,
+                                 archivosMultimedia = archivosMultimedia
+                             )
+                         }
+                    }
+
+                    else -> { // Crear nuevo borrador, ya se online u offline
+                        android.util.Log.d(TAG, "=== Creando nuevo borrador ===")
+                        withContext(Dispatchers.IO) {
+                            publicacionRepository.crearPublicacion(
+                                titulo = title,
+                                descripcion = description,
+                                estatus = "borrador",
+                                idAutor = currentUser.id,
+                                imagenes = archivosMultimedia.ifEmpty { null },
+                                token = token
+                            )
+                        }
                     }
                 }
 
@@ -683,6 +925,15 @@ class CreatePostActivity : AppCompatActivity() {
     // 🆕 MÉTODO PUBLISHPOST MEJORADO (CREAR/ACTUALIZAR)
     // ============================================
     private fun publishPost() {
+        if (isReadOnlyMode) {
+            Toast.makeText(
+                this,
+                "No puedes publicar un borrador sincronizado desde aquí. Conéctate a internet.",
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+
         if (!validateForm() || isLoading) return
 
         val title = binding.etRecipeTitle.text.toString().trim()
@@ -718,6 +969,17 @@ class CreatePostActivity : AppCompatActivity() {
                             estatus = "publicada",
                             imagenes = archivosMultimedia, // ✅ USAR ARCHIVOS DEL ADAPTER
                             token = token
+                        )
+                    }
+                } else if (isEditMode && !networkMonitor.isOnline()) {
+                    android.util.Log.d(TAG, "=== Publicando borrador existente de forma offline ===")
+                    withContext(Dispatchers.IO) {
+                        publicacionRepository.actualizarPublicacionOffline(
+                            localId = editingPostId.toLong(),
+                            titulo = title,
+                            descripcion = description,
+                            archivosMultimedia = archivosMultimedia,
+                            estatus = "publicada",
                         )
                     }
                 } else {

@@ -66,7 +66,7 @@ class PostDetailActivity : AppCompatActivity() {
         binding = ActivityPostDetailBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        publicacionRepository = PublicacionRepository()
+        publicacionRepository = PublicacionRepository(this)
         comentarioRepository = ComentarioRepository()
         favoritoRepository = FavoritoRepository()
         sessionManager = SessionManager(this)
