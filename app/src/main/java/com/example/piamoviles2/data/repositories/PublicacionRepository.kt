@@ -20,10 +20,14 @@ import com.example.piamoviles2.data.local.dao.*
 import com.example.piamoviles2.utils.NetworkMonitor
 import org.json.JSONArray
 
+// Session manager para obtener usuario actual
+import com.example.piamoviles2.utils.SessionManager
+
 class PublicacionRepository(
-    private val context: Context? = null, // NUEVO: Context para acceder a Room
+    private val context: Context, // NUEVO: Context para acceder a Room
     private val apiService: ApiService = NetworkConfig.apiService
 ) {
+    private val sessionManager = SessionManager(context)
 
     // COMPONENTES PARA MODO OFFLINE
     internal val database: AppDatabase? by lazy {
@@ -575,7 +579,8 @@ class PublicacionRepository(
         localId: Long,
         titulo: String,
         descripcion: String,
-        archivosMultimedia: List<File>
+        archivosMultimedia: List<File>,
+        estatus: String? = "borrador"
     ): Result<com.example.piamoviles2.data.models.PublicacionDetalle> {
         return try {
             android.util.Log.d(TAG, "=== actualizarBorradorEnSQLite ===")
@@ -585,8 +590,10 @@ class PublicacionRepository(
             val db = this.database
                 ?: return Result.failure(Exception("Base de datos no disponible"))
 
+            val currentUser = sessionManager.getCurrentUser()
+
             // 1. Obtener la publicación actual
-            val publicacionActual = db.publicacionLocalDao().obtenerPublicacionesParaFeed()
+            val publicacionActual = db.publicacionLocalDao().obtenerPublicacionesParaFeed(currentUser?.id)
                 .find { it.id == localId }
                 ?: return Result.failure(Exception("Borrador no encontrado"))
 
@@ -634,6 +641,7 @@ class PublicacionRepository(
             val publicacionActualizada = publicacionActual.copy(
                 titulo = titulo,
                 descripcion = descripcion,
+                estatus = estatus?: "borrador",
                 multimediaJson = nuevoMultimediaJson,
                 fechaCreacion = System.currentTimeMillis() // Actualizar timestamp
             )
@@ -652,7 +660,7 @@ class PublicacionRepository(
                 fechaCreacion = fechaActual,
                 fechaPublicacion = fechaActual,
                 fechaModificacion = fechaActual,
-                estatus = "borrador",
+                estatus = estatus?: "borrador",
                 idAutor = publicacionActualizada.idAutor,
                 autorAlias = "Usuario",
                 autorFoto = null,
@@ -1185,7 +1193,9 @@ class PublicacionRepository(
             Log.d(TAG, "=== obtenerFeedOfflineConvertido ===")
 
             val db = database ?: return Result.failure(Exception("Base de datos no disponible"))
-            val publicacionesLocales = db.publicacionLocalDao().obtenerPublicacionesParaFeed()
+            val currentUserId = sessionManager.getCurrentUser()?.id ?: ""
+
+            val publicacionesLocales = db.publicacionLocalDao().obtenerPublicacionesParaFeed(currentUserId)
 
             Log.d(TAG, "Publicaciones locales encontradas: ${publicacionesLocales.size}")
 
@@ -1300,8 +1310,10 @@ class PublicacionRepository(
 
             val db = database ?: return Result.failure(Exception("Base de datos no disponible"))
 
+            val currentUserId = sessionManager.getCurrentUser()?.id ?: ""
+
             // Obtener todas las publicaciones locales (ya son del usuario activo)
-            val publicacionesLocales = db.publicacionLocalDao().obtenerPublicacionesParaFeed()
+            val publicacionesLocales = db.publicacionLocalDao().obtenerPublicacionesParaFeed(currentUserId)
 
             Log.d(TAG, "Total publicaciones offline encontradas: ${publicacionesLocales.size}")
 

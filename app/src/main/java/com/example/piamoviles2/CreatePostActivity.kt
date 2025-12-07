@@ -41,6 +41,8 @@ class CreatePostActivity : AppCompatActivity() {
     private var editingPostId = -1
     private var editingDraftApiId: String? = null // 🆕 API ID del borrador a editar
 
+    private var isReadOnlyMode = false
+
     // ============================================
     // VARIABLES PARA API INTEGRATION
     // ============================================
@@ -237,6 +239,11 @@ class CreatePostActivity : AppCompatActivity() {
     }
 
     private fun handleBackNavigation() {
+        if (isReadOnlyMode) {
+            finish()
+            return
+        }
+
         // Verificar si hay cambios sin guardar
         val title = binding.etRecipeTitle.text.toString().trim()
         val description = binding.etRecipeDescription.text.toString().trim()
@@ -464,8 +471,8 @@ class CreatePostActivity : AppCompatActivity() {
                         )
 
                     try {
-                        val publicacionLocal = db.publicacionLocalDao().obtenerPublicacionesParaFeed()
-                            .find { it.id == localId }
+                        // 🆕 USAR MÉTODO ESPECÍFICO PARA OBTENER POR ID
+                        val publicacionLocal = db.publicacionLocalDao().obtenerPorId(localId)
 
                         if (publicacionLocal != null) {
                             Result.success(publicacionLocal)
@@ -481,6 +488,16 @@ class CreatePostActivity : AppCompatActivity() {
                     onSuccess = { publicacionLocal ->
                         android.util.Log.d(TAG, "✅ Borrador SQLite cargado: ${publicacionLocal.titulo}")
 
+                        // 🆕 VERIFICAR SI YA ESTÁ SINCRONIZADO
+                        if (publicacionLocal.sincronizado && !publicacionLocal.apiId.isNullOrEmpty()) {
+                            android.util.Log.d(TAG, "⚠️ Borrador YA sincronizado - Modo SOLO LECTURA")
+                            isReadOnlyMode = true
+                            editingDraftApiId = publicacionLocal.apiId // Guardar API ID
+                        } else {
+                            android.util.Log.d(TAG, "✅ Borrador NO sincronizado - Modo EDITABLE")
+                            isReadOnlyMode = false
+                        }
+
                         // Cargar datos en la interfaz
                         binding.etRecipeTitle.setText(publicacionLocal.titulo)
                         binding.etRecipeDescription.setText(publicacionLocal.descripcion)
@@ -490,19 +507,31 @@ class CreatePostActivity : AppCompatActivity() {
                             loadMultimediaFromSQLite(multimediaJson)
                         }
 
-                        // Actualizar botones para modo edición
-                        updateUIForEditMode()
+                        // 🆕 Actualizar UI según modo (editable o solo lectura)
+                        if (isReadOnlyMode) {
+                            setupReadOnlyMode()
+                        } else {
+                            updateUIForEditMode()
+                        }
                     },
                     onFailure = { error ->
                         android.util.Log.e(TAG, "❌ Error al cargar borrador SQLite", error)
-                        Toast.makeText(this@CreatePostActivity, "Error al cargar borrador: ${error.message}", Toast.LENGTH_LONG).show()
+                        Toast.makeText(
+                            this@CreatePostActivity,
+                            "Error al cargar borrador: ${error.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
                         finish()
                     }
                 )
 
             } catch (e: Exception) {
                 android.util.Log.e(TAG, "❌ Exception al cargar borrador SQLite", e)
-                Toast.makeText(this@CreatePostActivity, "Error inesperado: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(
+                    this@CreatePostActivity,
+                    "Error inesperado: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
                 finish()
             } finally {
                 setLoading(false)
@@ -653,6 +682,40 @@ class CreatePostActivity : AppCompatActivity() {
         android.util.Log.d(TAG, "UI actualizada para modo edición")
     }
 
+    // Solo lectura si la publicacion ya se sincronizó con la API
+    private fun setupReadOnlyMode() {
+        android.util.Log.d(TAG, "=== Configurando modo SOLO LECTURA ===")
+
+        // Cambiar título de pantalla
+        binding.tvScreenTitle.text = "Ver borrador (sincronizado)"
+
+        // 🔒 DESHABILITAR CAMPOS DE TEXTO
+        binding.etRecipeTitle.isEnabled = false
+        binding.etRecipeDescription.isEnabled = false
+
+        // 🔒 DESHABILITAR BOTÓN DE AGREGAR MULTIMEDIA
+        binding.btnAddMultimedia.isEnabled = false
+        binding.btnAddMultimedia.alpha = 0.5f
+
+        // 🔒 DESHABILITAR BOTONES DE ACCIÓN
+        binding.btnSaveDraft.isEnabled = false
+        binding.btnSaveDraft.alpha = 0.5f
+        binding.btnSaveDraft.text = "Ya sincronizado"
+
+        binding.btnPublish.isEnabled = false
+        binding.btnPublish.alpha = 0.5f
+        binding.btnPublish.text = "Editar en línea"
+
+        // 📢 MOSTRAR MENSAJE INFORMATIVO
+        Toast.makeText(
+            this,
+            "Este borrador ya fue sincronizado. Para editarlo, conéctate a internet.",
+            Toast.LENGTH_LONG
+        ).show()
+
+        android.util.Log.d(TAG, "✅ Modo solo lectura activado")
+    }
+
     private fun loadPostData(postId: Int) {
         // Método legacy para compatibilidad
         val post = Post.getSamplePosts().find { it.id == postId }
@@ -767,6 +830,15 @@ class CreatePostActivity : AppCompatActivity() {
     // 🆕 MÉTODO SAVEEDRAFT MEJORADO (CREAR/ACTUALIZAR)
     // ============================================
     private fun saveDraft() {
+        if (isReadOnlyMode) {
+            Toast.makeText(
+                this,
+                "No puedes editar un borrador sincronizado. Conéctate a internet para editarlo.",
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+
         if (!validateForm() || isLoading) return
 
         val title = binding.etRecipeTitle.text.toString().trim()
@@ -853,6 +925,15 @@ class CreatePostActivity : AppCompatActivity() {
     // 🆕 MÉTODO PUBLISHPOST MEJORADO (CREAR/ACTUALIZAR)
     // ============================================
     private fun publishPost() {
+        if (isReadOnlyMode) {
+            Toast.makeText(
+                this,
+                "No puedes publicar un borrador sincronizado desde aquí. Conéctate a internet.",
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+
         if (!validateForm() || isLoading) return
 
         val title = binding.etRecipeTitle.text.toString().trim()
@@ -888,6 +969,17 @@ class CreatePostActivity : AppCompatActivity() {
                             estatus = "publicada",
                             imagenes = archivosMultimedia, // ✅ USAR ARCHIVOS DEL ADAPTER
                             token = token
+                        )
+                    }
+                } else if (isEditMode && !networkMonitor.isOnline()) {
+                    android.util.Log.d(TAG, "=== Publicando borrador existente de forma offline ===")
+                    withContext(Dispatchers.IO) {
+                        publicacionRepository.actualizarPublicacionOffline(
+                            localId = editingPostId.toLong(),
+                            titulo = title,
+                            descripcion = description,
+                            archivosMultimedia = archivosMultimedia,
+                            estatus = "publicada",
                         )
                     }
                 } else {

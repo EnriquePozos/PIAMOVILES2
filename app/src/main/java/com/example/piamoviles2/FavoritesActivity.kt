@@ -33,7 +33,7 @@ class FavoritesActivity : AppCompatActivity() {
 
         // Inicializar componentes
         sessionManager = SessionManager(this)
-        publicacionRepository = PublicacionRepository()
+        publicacionRepository = PublicacionRepository(this)
 
         setupHeader()
         setupRecyclerView()
