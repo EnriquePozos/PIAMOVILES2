@@ -39,7 +39,7 @@ class CreatePostActivity : AppCompatActivity() {
     // Modo de edición
     private var isEditMode = false
     private var editingPostId = -1
-    private var editingDraftApiId: String? = null // 🆕 API ID del borrador a editar
+    private var editingDraftApiId: String? = null
 
     private var isReadOnlyMode = false
 
@@ -55,7 +55,7 @@ class CreatePostActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_DRAFT_ID = "extra_draft_id"
         const val EXTRA_POST_ID = "extra_post_id"
-        const val EXTRA_DRAFT_API_ID = "extra_draft_api_id" // 🆕 Para recibir API ID del borrador
+        const val EXTRA_DRAFT_API_ID = "extra_draft_api_id"
         private const val MAX_IMAGES = 3
         private const val TAG = "CREATE_POST_DEBUG"
     }
@@ -67,7 +67,6 @@ class CreatePostActivity : AppCompatActivity() {
         binding = ActivityCreatePostBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        //   CÓDIGO EXISTENTE
         initializeImages()
         setupHeader()
         setupImagePicker()
@@ -77,12 +76,12 @@ class CreatePostActivity : AppCompatActivity() {
         setupBackPressedHandler()
 
         // ============================================
-        //   NUEVAS FUNCIONALIDADES API
+        // NUEVAS FUNCIONALIDADES API
         // ============================================
         setupApiComponents()
         loadUserData()
 
-        // 🆕 Verificar modo de edición DESPUÉS de configurar API
+        // Verificar modo de edición DESPUÉS de configurar API
         checkEditMode()
 
         android.util.Log.d(TAG, "CreatePostActivity iniciada")
@@ -120,7 +119,7 @@ class CreatePostActivity : AppCompatActivity() {
             updateEmptyState()
 
             Toast.makeText(this, "Elemento eliminado (${multimediaItems.size}/$MAX_MULTIMEDIA)", Toast.LENGTH_SHORT).show()
-            android.util.Log.d(TAG, "✅ Item eliminado - Total restante: ${multimediaItems.size}")
+            android.util.Log.d(TAG, "Item eliminado - Total restante: ${multimediaItems.size}")
         }
     }
 
@@ -152,15 +151,11 @@ class CreatePostActivity : AppCompatActivity() {
         val token = sessionManager.getAccessToken()
         val currentUser = sessionManager.getCurrentUser()
 
-        android.util.Log.d(TAG, "Token: ${if (token?.isNotEmpty() == true) "  Cargado" else "  Vacío"}")
+        android.util.Log.d(TAG, "Token: ${if (token?.isNotEmpty() == true) "Cargado" else "Vacío"}")
         android.util.Log.d(TAG, "User ID: ${currentUser?.id}")
     }
 
     private fun initializeImages() {
-        // Inicializar lista de imágenes
-//        repeat(MAX_IMAGES) {
-//            selectedImages.add(null)
-//        }
         android.util.Log.d(TAG, "Imágenes inicializadas")
     }
 
@@ -190,7 +185,7 @@ class CreatePostActivity : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
-        // 🆕 Botón para agregar multimedia
+        // Botón para agregar multimedia
         binding.btnAddMultimedia.setOnClickListener {
             if (multimediaItems.size >= MAX_MULTIMEDIA) {
                 Toast.makeText(this, "Máximo $MAX_MULTIMEDIA elementos permitidos", Toast.LENGTH_SHORT).show()
@@ -207,7 +202,7 @@ class CreatePostActivity : AppCompatActivity() {
     private fun showMultimediaSourceDialog() {
         AlertDialog.Builder(this)
             .setTitle("Agregar multimedia")
-            .setItems(arrayOf("📷 Foto (Cámara)", "🖼️ Imagen (Galería)", "🎥 Video")) { _, which ->
+            .setItems(arrayOf("Foto (Cámara)", "Imagen (Galería)", "Video")) { _, which ->
                 when (which) {
                     0 -> imagePickerHelper.openCamera()
                     1 -> imagePickerHelper.openGallery()
@@ -221,7 +216,7 @@ class CreatePostActivity : AppCompatActivity() {
         // Mostrar opciones: Cámara o Galería
         AlertDialog.Builder(this)
             .setTitle("Seleccionar video")
-            .setItems(arrayOf("📹 Grabar video", "🎬 Galería de videos")) { _, which ->
+            .setItems(arrayOf("Grabar video", "Galería de videos")) { _, which ->
                 when (which) {
                     0 -> videoPickerHelper.openCamera()
                     1 -> videoPickerHelper.openGallery()
@@ -247,7 +242,7 @@ class CreatePostActivity : AppCompatActivity() {
         // Verificar si hay cambios sin guardar
         val title = binding.etRecipeTitle.text.toString().trim()
         val description = binding.etRecipeDescription.text.toString().trim()
-        val hasMultimedia = multimediaItems.isNotEmpty() // ✅ CORRECTO
+        val hasMultimedia = multimediaItems.isNotEmpty()
 
         if (title.isNotEmpty() || description.isNotEmpty() || hasMultimedia) {
             AlertDialog.Builder(this)
@@ -271,7 +266,7 @@ class CreatePostActivity : AppCompatActivity() {
     }
 
     // ============================================
-    // 🆕 MÉTODO CHECKEEDITMODE MEJORADO
+    // MÉTODO CHECKEDITMODE MEJORADO
     // ============================================
     private fun checkEditMode() {
         // Verificar si estamos editando un borrador (prioridad al API ID)
@@ -305,7 +300,7 @@ class CreatePostActivity : AppCompatActivity() {
     }
 
     // ============================================
-    // 🆕 CARGAR BORRADOR DESDE API
+    // CARGAR BORRADOR DESDE API
     // ============================================
     private fun loadDraftFromApi(apiId: String) {
         val token = sessionManager.getAccessToken()
@@ -329,7 +324,7 @@ class CreatePostActivity : AppCompatActivity() {
 
                 result.fold(
                     onSuccess = { publicacion ->
-                        android.util.Log.d(TAG, "✅ Borrador cargado: ${publicacion.titulo}")
+                        android.util.Log.d(TAG, "Borrador cargado: ${publicacion.titulo}")
 
                         // Cargar datos en la interfaz
                         binding.etRecipeTitle.setText(publicacion.titulo)
@@ -345,14 +340,14 @@ class CreatePostActivity : AppCompatActivity() {
 
                     },
                     onFailure = { error ->
-                        android.util.Log.e(TAG, "❌ Error al cargar borrador", error)
+                        android.util.Log.e(TAG, "Error al cargar borrador", error)
                         Toast.makeText(this@CreatePostActivity, "Error al cargar borrador: ${error.message}", Toast.LENGTH_LONG).show()
                         finish()
                     }
                 )
 
             } catch (e: Exception) {
-                android.util.Log.e(TAG, "❌ Exception al cargar borrador", e)
+                android.util.Log.e(TAG, "Exception al cargar borrador", e)
                 Toast.makeText(this@CreatePostActivity, "Error inesperado: ${e.message}", Toast.LENGTH_LONG).show()
                 finish()
             } finally {
@@ -380,8 +375,8 @@ class CreatePostActivity : AppCompatActivity() {
     }
 
     // ============================================
-// CARGAR IMAGEN DESDE URL
-// ============================================
+    // CARGAR IMAGEN DESDE URL
+    // ============================================
     private fun loadImageFromUrl(url: String) {
         android.util.Log.d(TAG, "Cargando IMAGEN desde: $url")
 
@@ -390,10 +385,10 @@ class CreatePostActivity : AppCompatActivity() {
             .load(url)
             .into(object : CustomTarget<Bitmap>() {
                 override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
-                    android.util.Log.d(TAG, "✅ Imagen cargada exitosamente")
+                    android.util.Log.d(TAG, "Imagen cargada exitosamente")
 
-                    // Crear item multimedia
-                    val item = MultimediaItem.crearImagen(resource)
+                    // CAMBIO: Marcar como persistente porque viene de la API/BD
+                    val item = MultimediaItem.crearImagen(resource, isPersistent = true)
 
                     // Convertir a archivo
                     convertBitmapToFileForItem(resource, item)
@@ -408,14 +403,14 @@ class CreatePostActivity : AppCompatActivity() {
                 }
 
                 override fun onLoadFailed(errorDrawable: android.graphics.drawable.Drawable?) {
-                    android.util.Log.e(TAG, "❌ Error al cargar imagen desde $url")
+                    android.util.Log.e(TAG, "Error al cargar imagen desde $url")
                 }
             })
     }
 
     // ============================================
-// 🆕 CARGAR VIDEO DESDE URL
-// ============================================
+    // CARGAR VIDEO DESDE URL
+    // ============================================
     private fun loadVideoFromUrl(url: String) {
         android.util.Log.d(TAG, "Cargando VIDEO desde: $url")
 
@@ -425,12 +420,13 @@ class CreatePostActivity : AppCompatActivity() {
             .load(url)
             .into(object : CustomTarget<Bitmap>() {
                 override fun onResourceReady(thumbnail: Bitmap, transition: Transition<in Bitmap>?) {
-                    android.util.Log.d(TAG, "✅ Thumbnail de video generado")
+                    android.util.Log.d(TAG, "Thumbnail de video generado")
 
-                    // Crear item multimedia de tipo VIDEO
+                    // CAMBIO: Marcar como persistente porque viene de la API/BD
                     val item = MultimediaItem.crearVideo(
                         uri = android.net.Uri.parse(url),
-                        thumbnail = thumbnail
+                        thumbnail = thumbnail,
+                        isPersistent = true
                     )
 
                     // Descargar el video a un archivo temporal
@@ -442,12 +438,13 @@ class CreatePostActivity : AppCompatActivity() {
                 }
 
                 override fun onLoadFailed(errorDrawable: android.graphics.drawable.Drawable?) {
-                    android.util.Log.e(TAG, "❌ Error al cargar thumbnail de video desde $url")
+                    android.util.Log.e(TAG, "Error al cargar thumbnail de video desde $url")
 
-                    // Crear item sin thumbnail
+                    // CAMBIO: Marcar como persistente
                     val item = MultimediaItem.crearVideo(
                         uri = android.net.Uri.parse(url),
-                        thumbnail = null
+                        thumbnail = null,
+                        isPersistent = true
                     )
 
                     downloadVideoToFile(url, item)
@@ -471,7 +468,7 @@ class CreatePostActivity : AppCompatActivity() {
                         )
 
                     try {
-                        // 🆕 USAR MÉTODO ESPECÍFICO PARA OBTENER POR ID
+                        // USAR MÉTODO ESPECÍFICO PARA OBTENER POR ID
                         val publicacionLocal = db.publicacionLocalDao().obtenerPorId(localId)
 
                         if (publicacionLocal != null) {
@@ -486,15 +483,15 @@ class CreatePostActivity : AppCompatActivity() {
 
                 result.fold(
                     onSuccess = { publicacionLocal ->
-                        android.util.Log.d(TAG, "✅ Borrador SQLite cargado: ${publicacionLocal.titulo}")
+                        android.util.Log.d(TAG, "Borrador SQLite cargado: ${publicacionLocal.titulo}")
 
-                        // 🆕 VERIFICAR SI YA ESTÁ SINCRONIZADO
+                        // VERIFICAR SI YA ESTÁ SINCRONIZADO
                         if (publicacionLocal.sincronizado && !publicacionLocal.apiId.isNullOrEmpty()) {
-                            android.util.Log.d(TAG, "⚠️ Borrador YA sincronizado - Modo SOLO LECTURA")
+                            android.util.Log.d(TAG, "Borrador YA sincronizado - Modo SOLO LECTURA")
                             isReadOnlyMode = true
                             editingDraftApiId = publicacionLocal.apiId // Guardar API ID
                         } else {
-                            android.util.Log.d(TAG, "✅ Borrador NO sincronizado - Modo EDITABLE")
+                            android.util.Log.d(TAG, "Borrador NO sincronizado - Modo EDITABLE")
                             isReadOnlyMode = false
                         }
 
@@ -507,7 +504,7 @@ class CreatePostActivity : AppCompatActivity() {
                             loadMultimediaFromSQLite(multimediaJson)
                         }
 
-                        // 🆕 Actualizar UI según modo (editable o solo lectura)
+                        // Actualizar UI según modo (editable o solo lectura)
                         if (isReadOnlyMode) {
                             setupReadOnlyMode()
                         } else {
@@ -515,7 +512,7 @@ class CreatePostActivity : AppCompatActivity() {
                         }
                     },
                     onFailure = { error ->
-                        android.util.Log.e(TAG, "❌ Error al cargar borrador SQLite", error)
+                        android.util.Log.e(TAG, "Error al cargar borrador SQLite", error)
                         Toast.makeText(
                             this@CreatePostActivity,
                             "Error al cargar borrador: ${error.message}",
@@ -526,7 +523,7 @@ class CreatePostActivity : AppCompatActivity() {
                 )
 
             } catch (e: Exception) {
-                android.util.Log.e(TAG, "❌ Exception al cargar borrador SQLite", e)
+                android.util.Log.e(TAG, "Exception al cargar borrador SQLite", e)
                 Toast.makeText(
                     this@CreatePostActivity,
                     "Error inesperado: ${e.message}",
@@ -540,8 +537,8 @@ class CreatePostActivity : AppCompatActivity() {
     }
 
     // ============================================
-// 🆕 CARGAR MULTIMEDIA DESDE JSON LOCAL
-// ============================================
+    // CARGAR MULTIMEDIA DESDE JSON LOCAL
+    // ============================================
     private fun loadMultimediaFromSQLite(multimediaJson: String) {
         android.util.Log.d(TAG, "=== loadMultimediaFromSQLite ===")
         android.util.Log.d(TAG, "JSON: $multimediaJson")
@@ -582,19 +579,20 @@ class CreatePostActivity : AppCompatActivity() {
     }
 
     // ============================================
-// 🆕 HELPERS PARA CARGAR ARCHIVOS LOCALES
-// ============================================
+    // HELPERS PARA CARGAR ARCHIVOS LOCALES
+    // ============================================
     private fun loadImageFromLocalFile(file: java.io.File) {
         try {
             val bitmap = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
             if (bitmap != null) {
-                val item = MultimediaItem.crearImagen(bitmap)
+                // CAMBIO: Marcar como persistente porque viene de la BD
+                val item = MultimediaItem.crearImagen(bitmap, isPersistent = true)
                 item.file = file // Asignar archivo existente
 
                 multimediaAdapter.addItem(item)
                 updateEmptyState()
 
-                android.util.Log.d(TAG, "✅ Imagen local cargada: ${file.name}")
+                android.util.Log.d(TAG, "Imagen local cargada (PERSISTENTE): ${file.name}")
             }
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Error al cargar imagen local", e)
@@ -610,16 +608,18 @@ class CreatePostActivity : AppCompatActivity() {
                 .submit()
                 .get() // Sincrono para simplificar
 
+            // CAMBIO: Marcar como persistente porque viene de la BD
             val item = MultimediaItem.crearVideo(
                 uri = android.net.Uri.fromFile(file),
-                thumbnail = thumbnail
+                thumbnail = thumbnail,
+                isPersistent = true
             )
             item.file = file // Asignar archivo existente
 
             multimediaAdapter.addItem(item)
             updateEmptyState()
 
-            android.util.Log.d(TAG, "✅ Video local cargado: ${file.name}")
+            android.util.Log.d(TAG, "Video local cargado (PERSISTENTE): ${file.name}")
 
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Error al cargar video local", e)
@@ -627,8 +627,8 @@ class CreatePostActivity : AppCompatActivity() {
     }
 
     // ============================================
-// 🆕 DESCARGAR VIDEO A ARCHIVO TEMPORAL
-// ============================================
+    // DESCARGAR VIDEO A ARCHIVO TEMPORAL
+    // ============================================
     private fun downloadVideoToFile(url: String, item: MultimediaItem) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -647,7 +647,7 @@ class CreatePostActivity : AppCompatActivity() {
                     }
                 }
 
-                android.util.Log.d(TAG, "✅ Video descargado: ${tempFile.name}, tamaño: ${tempFile.length()} bytes")
+                android.util.Log.d(TAG, "Video descargado: ${tempFile.name}, tamaño: ${tempFile.length()} bytes")
 
                 // Asignar archivo al item
                 item.file = tempFile
@@ -659,7 +659,7 @@ class CreatePostActivity : AppCompatActivity() {
                 }
 
             } catch (e: Exception) {
-                android.util.Log.e(TAG, "❌ Error al descargar video", e)
+                android.util.Log.e(TAG, "Error al descargar video", e)
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
                         this@CreatePostActivity,
@@ -672,7 +672,7 @@ class CreatePostActivity : AppCompatActivity() {
     }
 
     // ============================================
-    // 🆕 ACTUALIZAR UI PARA MODO EDICIÓN
+    // ACTUALIZAR UI PARA MODO EDICIÓN
     // ============================================
     private fun updateUIForEditMode() {
         // Cambiar texto de botones para modo edición
@@ -689,15 +689,15 @@ class CreatePostActivity : AppCompatActivity() {
         // Cambiar título de pantalla
         binding.tvScreenTitle.text = "Ver borrador (sincronizado)"
 
-        // 🔒 DESHABILITAR CAMPOS DE TEXTO
+        // DESHABILITAR CAMPOS DE TEXTO
         binding.etRecipeTitle.isEnabled = false
         binding.etRecipeDescription.isEnabled = false
 
-        // 🔒 DESHABILITAR BOTÓN DE AGREGAR MULTIMEDIA
+        // DESHABILITAR BOTÓN DE AGREGAR MULTIMEDIA
         binding.btnAddMultimedia.isEnabled = false
         binding.btnAddMultimedia.alpha = 0.5f
 
-        // 🔒 DESHABILITAR BOTONES DE ACCIÓN
+        // DESHABILITAR BOTONES DE ACCIÓN
         binding.btnSaveDraft.isEnabled = false
         binding.btnSaveDraft.alpha = 0.5f
         binding.btnSaveDraft.text = "Ya sincronizado"
@@ -706,14 +706,14 @@ class CreatePostActivity : AppCompatActivity() {
         binding.btnPublish.alpha = 0.5f
         binding.btnPublish.text = "Editar en línea"
 
-        // 📢 MOSTRAR MENSAJE INFORMATIVO
+        // MOSTRAR MENSAJE INFORMATIVO
         Toast.makeText(
             this,
             "Este borrador ya fue sincronizado. Para editarlo, conéctate a internet.",
             Toast.LENGTH_LONG
         ).show()
 
-        android.util.Log.d(TAG, "✅ Modo solo lectura activado")
+        android.util.Log.d(TAG, "Modo solo lectura activado")
     }
 
     private fun loadPostData(postId: Int) {
@@ -739,7 +739,7 @@ class CreatePostActivity : AppCompatActivity() {
         updateEmptyState()
 
         Toast.makeText(this, "Imagen agregada (${multimediaItems.size}/$MAX_MULTIMEDIA)", Toast.LENGTH_SHORT).show()
-        android.util.Log.d(TAG, "✅ Imagen agregada - Total: ${multimediaItems.size}")
+        android.util.Log.d(TAG, "Imagen agregada - Total: ${multimediaItems.size}")
     }
 
     private fun addVideoToMultimedia(videoResult: VideoPickerHelper.VideoResult) {
@@ -768,10 +768,10 @@ class CreatePostActivity : AppCompatActivity() {
                 Toast.LENGTH_LONG
             ).show()
 
-            android.util.Log.d(TAG, "✅ Video agregado - Total: ${multimediaItems.size}")
+            android.util.Log.d(TAG, "Video agregado - Total: ${multimediaItems.size}")
 
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ Error al agregar video", e)
+            android.util.Log.e(TAG, "Error al agregar video", e)
             Toast.makeText(this, "Error al procesar video: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
@@ -789,9 +789,9 @@ class CreatePostActivity : AppCompatActivity() {
 
             item.file = tempFile
 
-            android.util.Log.d(TAG, "✅ Imagen convertida a archivo: ${tempFile.name}")
+            android.util.Log.d(TAG, "Imagen convertida a archivo: ${tempFile.name}")
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ Error al convertir bitmap a archivo", e)
+            android.util.Log.e(TAG, "Error al convertir bitmap a archivo", e)
         }
     }
 
@@ -827,7 +827,7 @@ class CreatePostActivity : AppCompatActivity() {
     }
 
     // ============================================
-    // 🆕 MÉTODO SAVEEDRAFT MEJORADO (CREAR/ACTUALIZAR)
+    // MÉTODO SAVEEDRAFT MEJORADO (CREAR/ACTUALIZAR)
     // ============================================
     private fun saveDraft() {
         if (isReadOnlyMode) {
@@ -856,7 +856,7 @@ class CreatePostActivity : AppCompatActivity() {
 
         CoroutineScope(Dispatchers.Main).launch {
             try {
-                val archivosMultimedia = multimediaAdapter.getFiles() // ✅ OBTENER ARCHIVOS DEL ADAPTER
+                val archivosMultimedia = multimediaAdapter.getFiles()
 
                 val result = when {
                     isEditMode && networkMonitor.isOnline() && editingDraftApiId != null -> {
@@ -872,16 +872,16 @@ class CreatePostActivity : AppCompatActivity() {
                             )
                         }
                     }
-                     isEditMode && !networkMonitor.isOnline() && editingPostId != -1 -> {
-                         android.util.Log.d(TAG, "=== Actualizando borrador OFFLINE (SQLite) ===")
-                         withContext(Dispatchers.IO) {
-                             publicacionRepository.actualizarPublicacionOffline(
-                                 localId = editingPostId.toLong(),
-                                 titulo = title,
-                                 descripcion = description,
-                                 archivosMultimedia = archivosMultimedia
-                             )
-                         }
+                    isEditMode && !networkMonitor.isOnline() && editingPostId != -1 -> {
+                        android.util.Log.d(TAG, "=== Actualizando borrador OFFLINE (SQLite) ===")
+                        withContext(Dispatchers.IO) {
+                            publicacionRepository.actualizarPublicacionOffline(
+                                localId = editingPostId.toLong(),
+                                titulo = title,
+                                descripcion = description,
+                                archivosMultimedia = archivosMultimedia
+                            )
+                        }
                     }
 
                     else -> { // Crear nuevo borrador, ya se online u offline
@@ -902,18 +902,18 @@ class CreatePostActivity : AppCompatActivity() {
                 result.fold(
                     onSuccess = { publicacion ->
                         val action = if (isEditMode) "actualizado" else "guardado"
-                        android.util.Log.d(TAG, "✅ Borrador $action: ${publicacion.id}")
+                        android.util.Log.d(TAG, "Borrador $action: ${publicacion.id}")
                         Toast.makeText(this@CreatePostActivity, "Borrador $action correctamente", Toast.LENGTH_SHORT).show()
                         cleanupAndFinish()
                     },
                     onFailure = { error ->
-                        android.util.Log.e(TAG, "❌ Error al guardar borrador", error)
+                        android.util.Log.e(TAG, "Error al guardar borrador", error)
                         Toast.makeText(this@CreatePostActivity, "Error al guardar borrador: ${error.message}", Toast.LENGTH_LONG).show()
                     }
                 )
 
             } catch (e: Exception) {
-                android.util.Log.e(TAG, "❌ Exception al guardar borrador", e)
+                android.util.Log.e(TAG, "Exception al guardar borrador", e)
                 Toast.makeText(this@CreatePostActivity, "Error inesperado: ${e.message}", Toast.LENGTH_LONG).show()
             } finally {
                 setLoading(false)
@@ -922,7 +922,7 @@ class CreatePostActivity : AppCompatActivity() {
     }
 
     // ============================================
-    // 🆕 MÉTODO PUBLISHPOST MEJORADO (CREAR/ACTUALIZAR)
+    // MÉTODO PUBLISHPOST MEJORADO (CREAR/ACTUALIZAR)
     // ============================================
     private fun publishPost() {
         if (isReadOnlyMode) {
@@ -940,7 +940,7 @@ class CreatePostActivity : AppCompatActivity() {
         val description = binding.etRecipeDescription.text.toString().trim()
 
         // Validar que tenga al menos una imagen para publicar
-        if (multimediaAdapter.isEmpty()) { // ✅ CORRECTO
+        if (multimediaAdapter.isEmpty()) {
             Toast.makeText(this, "Agrega al menos una imagen para publicar", Toast.LENGTH_SHORT).show()
             return
         }
@@ -957,7 +957,7 @@ class CreatePostActivity : AppCompatActivity() {
 
         CoroutineScope(Dispatchers.Main).launch {
             try {
-                val archivosMultimedia = multimediaAdapter.getFiles() // ✅ OBTENER ARCHIVOS
+                val archivosMultimedia = multimediaAdapter.getFiles()
 
                 val result = if (isEditMode && editingDraftApiId != null) {
                     android.util.Log.d(TAG, "=== Publicando borrador existente ===")
@@ -967,7 +967,7 @@ class CreatePostActivity : AppCompatActivity() {
                             titulo = title,
                             descripcion = description,
                             estatus = "publicada",
-                            imagenes = archivosMultimedia, // ✅ USAR ARCHIVOS DEL ADAPTER
+                            imagenes = archivosMultimedia,
                             token = token
                         )
                     }
@@ -990,7 +990,7 @@ class CreatePostActivity : AppCompatActivity() {
                             descripcion = description,
                             estatus = "publicada",
                             idAutor = currentUser.id,
-                            imagenes = archivosMultimedia, // ✅ USAR ARCHIVOS DEL ADAPTER
+                            imagenes = archivosMultimedia,
                             token = token
                         )
                     }
@@ -998,8 +998,8 @@ class CreatePostActivity : AppCompatActivity() {
 
                 result.fold(
                     onSuccess = { publicacion ->
-                        android.util.Log.d(TAG, "✅ Receta publicada: ${publicacion.id}")
-                        Toast.makeText(this@CreatePostActivity, "¡Receta publicada exitosamente!", Toast.LENGTH_LONG).show()
+                        android.util.Log.d(TAG, "Receta publicada: ${publicacion.id}")
+                        Toast.makeText(this@CreatePostActivity, "Receta publicada exitosamente", Toast.LENGTH_LONG).show()
 
                         val intent = Intent(this@CreatePostActivity, FeedActivity::class.java)
                         intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -1007,13 +1007,13 @@ class CreatePostActivity : AppCompatActivity() {
                         cleanupAndFinish()
                     },
                     onFailure = { error ->
-                        android.util.Log.e(TAG, "❌ Error al publicar", error)
+                        android.util.Log.e(TAG, "Error al publicar", error)
                         Toast.makeText(this@CreatePostActivity, "Error al publicar: ${error.message}", Toast.LENGTH_LONG).show()
                     }
                 )
 
             } catch (e: Exception) {
-                android.util.Log.e(TAG, "❌ Exception al publicar", e)
+                android.util.Log.e(TAG, "Exception al publicar", e)
                 Toast.makeText(this@CreatePostActivity, "Error inesperado: ${e.message}", Toast.LENGTH_LONG).show()
             } finally {
                 setLoading(false)
@@ -1044,14 +1044,29 @@ class CreatePostActivity : AppCompatActivity() {
     }
 
     private fun cleanupAndFinish() {
+        android.util.Log.d(TAG, "=== Limpieza de multimedia ===")
+        android.util.Log.d(TAG, "Total items: ${multimediaItems.size}")
+
+        var tempFilesDeleted = 0
+        var persistentFilesPreserved = 0
+
         // Limpiar todos los items multimedia
         multimediaItems.forEach { item ->
+            if (item.isPersistent) {
+                persistentFilesPreserved++
+                android.util.Log.d(TAG, "PRESERVADO: ${item.file?.name} (archivo de BD)")
+            } else {
+                tempFilesDeleted++
+                android.util.Log.d(TAG, "ELIMINADO: ${item.file?.name} (archivo temporal)")
+            }
             item.cleanup()
         }
 
         multimediaItems.clear()
 
-        android.util.Log.d(TAG, "Limpieza completada - Todos los archivos temporales eliminados")
+        android.util.Log.d(TAG, "Archivos temporales eliminados: $tempFilesDeleted")
+        android.util.Log.d(TAG, "Archivos persistentes preservados: $persistentFilesPreserved")
+        android.util.Log.d(TAG, "Limpieza completada")
 
         finish()
     }
@@ -1067,8 +1082,8 @@ class CreatePostActivity : AppCompatActivity() {
             id = if (isEditMode) editingPostId else generateNewId(),
             title = title,
             description = description,
-            imageUrl = "user_recipe_${System.currentTimeMillis()}", // En una app real serían URLs
-            author = "@${sessionManager.getCurrentUser()?.alias ?: "Usuario"}", // Usar alias real
+            imageUrl = "user_recipe_${System.currentTimeMillis()}",
+            author = "@${sessionManager.getCurrentUser()?.alias ?: "Usuario"}",
             createdAt = timestamp,
             isOwner = true,
             isFavorite = false,

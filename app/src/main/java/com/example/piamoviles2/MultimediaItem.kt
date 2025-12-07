@@ -11,7 +11,10 @@ data class MultimediaItem(
     val bitmap: Bitmap? = null,
     val videoUri: Uri? = null,
     var videoThumbnail: Bitmap? = null,
-    var file: File? = null
+    var file: File? = null,
+
+    // NUEVO: Flag para indicar si el archivo es persistente (no se debe eliminar)
+    var isPersistent: Boolean = false
 ) {
     /**
      * Enum para los tipos de multimedia soportados
@@ -45,20 +48,30 @@ data class MultimediaItem(
 
     /**
      * Limpia recursos y elimina archivos temporales
+     * MODIFICADO: Solo elimina archivos si NO son persistentes
      */
     fun cleanup() {
         file?.let { tempFile ->
             try {
-                if (tempFile.exists()) {
-                    tempFile.delete()
-                    Log.d("MultimediaItem", "Archivo eliminado: ${tempFile.name}")
+                // VALIDAR: Solo eliminar si NO es persistente
+                if (!isPersistent) {
+                    if (tempFile.exists()) {
+                        val deleted = tempFile.delete()
+                        if (deleted) {
+                            Log.d("MultimediaItem", "Archivo temporal eliminado: ${tempFile.name}")
+                        } else {
+                            Log.w("MultimediaItem", "No se pudo eliminar archivo temporal: ${tempFile.name}")
+                        }
+                    }
+                } else {
+                    Log.d("MultimediaItem", "Archivo persistente PRESERVADO: ${tempFile.name}")
                 }
             } catch (e: Exception) {
-                Log.w("MultimediaItem", "No se pudo eliminar archivo: ${tempFile.name}", e)
+                Log.w("MultimediaItem", "Error al procesar archivo: ${tempFile.name}", e)
             }
         }
 
-        // Liberar bitmaps
+        // Liberar bitmaps (esto siempre se hace)
         bitmap?.recycle()
         videoThumbnail?.recycle()
     }
@@ -66,22 +79,29 @@ data class MultimediaItem(
     companion object {
         /**
          * Crea un MultimediaItem de tipo IMAGEN
+         * @param bitmap Bitmap de la imagen
+         * @param isPersistent Si es true, el archivo NO se eliminará al hacer cleanup
          */
-        fun crearImagen(bitmap: Bitmap): MultimediaItem {
+        fun crearImagen(bitmap: Bitmap, isPersistent: Boolean = false): MultimediaItem {
             return MultimediaItem(
                 tipo = TipoMultimedia.IMAGEN,
-                bitmap = bitmap
+                bitmap = bitmap,
+                isPersistent = isPersistent
             )
         }
 
         /**
          * Crea un MultimediaItem de tipo VIDEO
+         * @param uri Uri del video
+         * @param thumbnail Thumbnail opcional del video
+         * @param isPersistent Si es true, el archivo NO se eliminará al hacer cleanup
          */
-        fun crearVideo(uri: Uri, thumbnail: Bitmap? = null): MultimediaItem {
+        fun crearVideo(uri: Uri, thumbnail: Bitmap? = null, isPersistent: Boolean = false): MultimediaItem {
             return MultimediaItem(
                 tipo = TipoMultimedia.VIDEO,
                 videoUri = uri,
-                videoThumbnail = thumbnail
+                videoThumbnail = thumbnail,
+                isPersistent = isPersistent
             )
         }
     }
