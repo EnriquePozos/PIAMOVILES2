@@ -16,7 +16,7 @@ import javax.net.ssl.SSLSocketFactory
 object NetworkConfig {
 
     // URL de ngrok
-    private const val BASE_URL = "https://e802b8b906ef.ngrok-free.app"
+    private const val BASE_URL = "https://85b2c8598ef6.ngrok-free.app"
     //private const val BASE_URL = "https://4add67e6ec94.ngrok-free.app"
 
     private val gson = GsonBuilder()

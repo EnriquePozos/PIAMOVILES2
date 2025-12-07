@@ -571,6 +571,104 @@ class PublicacionRepository(
         }
     }
 
+    suspend fun actualizarPublicacionOffline(
+        localId: Long,
+        titulo: String,
+        descripcion: String,
+        archivosMultimedia: List<File>
+    ): Result<com.example.piamoviles2.data.models.PublicacionDetalle> {
+        return try {
+            android.util.Log.d(TAG, "=== actualizarBorradorEnSQLite ===")
+            android.util.Log.d(TAG, "Local ID: $localId")
+            android.util.Log.d(TAG, "Nuevos archivos: ${archivosMultimedia.size}")
+
+            val db = this.database
+                ?: return Result.failure(Exception("Base de datos no disponible"))
+
+            // 1. Obtener la publicación actual
+            val publicacionActual = db.publicacionLocalDao().obtenerPublicacionesParaFeed()
+                .find { it.id == localId }
+                ?: return Result.failure(Exception("Borrador no encontrado"))
+
+            // 2. Procesar nuevos archivos multimedia
+            val nuevoMultimediaJson = if (archivosMultimedia.isNotEmpty()) {
+                // Copiar archivos a directorio persistente
+                val ctx = this.context
+                    ?: return Result.failure(Exception("Context no disponible"))
+
+                val offlineDir = File(ctx.filesDir, "multimedia_offline")
+                if (!offlineDir.exists()) {
+                    offlineDir.mkdirs()
+                }
+
+                val archivosPersistentes = archivosMultimedia.mapIndexed { index, originalFile ->
+                    try {
+                        val timestamp = System.currentTimeMillis()
+                        val extension = originalFile.extension.ifEmpty { "jpg" }
+                        val fileName = "multimedia_updated_${timestamp}_$index.$extension"
+                        val destFile = File(offlineDir, fileName)
+
+                        originalFile.copyTo(destFile, overwrite = true)
+
+                        mapOf(
+                            "tipo" to this.getMediaTypeForFile(originalFile),
+                            "ruta" to destFile.absolutePath,
+                            "nombre" to fileName
+                        )
+                    } catch (e: Exception) {
+                        android.util.Log.e(TAG, "Error al copiar archivo $index", e)
+                        null
+                    }
+                }.filterNotNull()
+
+                if (archivosPersistentes.isNotEmpty()) {
+                    org.json.JSONArray(archivosPersistentes).toString()
+                } else {
+                    publicacionActual.multimediaJson // Mantener multimedia actual
+                }
+            } else {
+                publicacionActual.multimediaJson // No hay nuevos archivos, mantener actuales
+            }
+
+            // 3. Actualizar en SQLite
+            val publicacionActualizada = publicacionActual.copy(
+                titulo = titulo,
+                descripcion = descripcion,
+                multimediaJson = nuevoMultimediaJson,
+                fechaCreacion = System.currentTimeMillis() // Actualizar timestamp
+            )
+
+            db.publicacionLocalDao().actualizar(publicacionActualizada)
+
+            android.util.Log.d(TAG, "✅ Borrador actualizado en SQLite")
+
+            // 4. Crear respuesta simulada
+            val fechaActual = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
+
+            val publicacionDetalle = PublicacionDetalle(
+                id = "offline_${publicacionActualizada.id}",
+                titulo = titulo,
+                descripcion = descripcion,
+                fechaCreacion = fechaActual,
+                fechaPublicacion = fechaActual,
+                fechaModificacion = fechaActual,
+                estatus = "borrador",
+                idAutor = publicacionActualizada.idAutor,
+                autorAlias = "Usuario",
+                autorFoto = null,
+                totalComentarios = 0,
+                totalReacciones = 0,
+                multimedia = emptyList()
+            )
+
+            Result.success(publicacionDetalle)
+
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "❌ Error al actualizar borrador SQLite", e)
+            Result.failure(e)
+        }
+    }
+
     // ELIMINAR PUBLICACIÓN
     suspend fun eliminarPublicacion(idPublicacion: String, token: String): Result<String> {
         return try {

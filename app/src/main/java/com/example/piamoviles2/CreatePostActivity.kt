@@ -23,6 +23,7 @@ import com.example.piamoviles2.data.models.MultimediaResponse
 import java.io.InputStream
 import java.net.URL
 import org.json.JSONArray
+import com.example.piamoviles2.utils.NetworkMonitor
 
 class CreatePostActivity : AppCompatActivity() {
 
@@ -45,6 +46,8 @@ class CreatePostActivity : AppCompatActivity() {
     // ============================================
     private lateinit var publicacionRepository: PublicacionRepository
     private lateinit var sessionManager: SessionManager
+
+    private lateinit var networkMonitor: NetworkMonitor
     private var isLoading = false
 
     companion object {
@@ -58,6 +61,7 @@ class CreatePostActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        networkMonitor = NetworkMonitor(this)
         binding = ActivityCreatePostBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -782,29 +786,44 @@ class CreatePostActivity : AppCompatActivity() {
             try {
                 val archivosMultimedia = multimediaAdapter.getFiles() // ✅ OBTENER ARCHIVOS DEL ADAPTER
 
-                val result = if (isEditMode && editingDraftApiId != null) {
-                    android.util.Log.d(TAG, "=== Actualizando borrador existente ===")
-                    withContext(Dispatchers.IO) {
-                        publicacionRepository.actualizarPublicacion(
-                            idPublicacion = editingDraftApiId!!,
-                            titulo = title,
-                            descripcion = description,
-                            estatus = "borrador",
-                            imagenes = archivosMultimedia.ifEmpty { null }, // ✅ USAR ARCHIVOS DEL ADAPTER
-                            token = token
-                        )
+                val result = when {
+                    isEditMode && networkMonitor.isOnline() && editingDraftApiId != null -> {
+                        android.util.Log.d(TAG, "=== Actualizando borrador ONLINE (API) ===")
+                        withContext(Dispatchers.IO) {
+                            publicacionRepository.actualizarPublicacion(
+                                idPublicacion = editingDraftApiId!!,
+                                titulo = title,
+                                descripcion = description,
+                                estatus = "borrador",
+                                imagenes = archivosMultimedia.ifEmpty { null },
+                                token = token
+                            )
+                        }
                     }
-                } else {
-                    android.util.Log.d(TAG, "=== Creando nuevo borrador ===")
-                    withContext(Dispatchers.IO) {
-                        publicacionRepository.crearPublicacion(
-                            titulo = title,
-                            descripcion = description,
-                            estatus = "borrador",
-                            idAutor = currentUser.id,
-                            imagenes = archivosMultimedia.ifEmpty { null }, // ✅ USAR ARCHIVOS DEL ADAPTER
-                            token = token
-                        )
+                     isEditMode && !networkMonitor.isOnline() && editingPostId != -1 -> {
+                         android.util.Log.d(TAG, "=== Actualizando borrador OFFLINE (SQLite) ===")
+                         withContext(Dispatchers.IO) {
+                             publicacionRepository.actualizarPublicacionOffline(
+                                 localId = editingPostId.toLong(),
+                                 titulo = title,
+                                 descripcion = description,
+                                 archivosMultimedia = archivosMultimedia
+                             )
+                         }
+                    }
+
+                    else -> { // Crear nuevo borrador, ya se online u offline
+                        android.util.Log.d(TAG, "=== Creando nuevo borrador ===")
+                        withContext(Dispatchers.IO) {
+                            publicacionRepository.crearPublicacion(
+                                titulo = title,
+                                descripcion = description,
+                                estatus = "borrador",
+                                idAutor = currentUser.id,
+                                imagenes = archivosMultimedia.ifEmpty { null },
+                                token = token
+                            )
+                        }
                     }
                 }
 
