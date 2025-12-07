@@ -687,7 +687,7 @@ class CreatePostActivity : AppCompatActivity() {
         android.util.Log.d(TAG, "=== Configurando modo SOLO LECTURA ===")
 
         // Cambiar título de pantalla
-        binding.tvScreenTitle.text = "Ver borrador (sincronizado)"
+        binding.tvScreenTitle.text = "Ver borrador"
 
         // DESHABILITAR CAMPOS DE TEXTO
         binding.etRecipeTitle.isEnabled = false

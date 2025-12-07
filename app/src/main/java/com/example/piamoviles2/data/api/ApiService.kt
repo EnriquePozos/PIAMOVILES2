@@ -175,7 +175,7 @@ interface ApiService {
     ): Response<PublicacionDetalleCompleta>
 
     // ============================================
-    // 🆕 ENDPOINTS DE REACCIONES (LIKES/DISLIKES)
+    //   ENDPOINTS DE REACCIONES (LIKES/DISLIKES)
     // ============================================
 
     /**
@@ -223,7 +223,7 @@ interface ApiService {
     ): Response<VerificarReaccionResponse>
 
     // ============================================
-    // 🆕 ENDPOINTS DE COMENTARIOS
+    //   ENDPOINTS DE COMENTARIOS
     // ============================================
 
     /**

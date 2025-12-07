@@ -48,15 +48,15 @@ class ComentarioRepository(
             android.util.Log.d(TAG, "Response code: ${response.code()}")
 
             if (response.isSuccessful && response.body() != null) {
-                android.util.Log.d(TAG, "✅ Comentario creado exitosamente")
+                android.util.Log.d(TAG, "  Comentario creado exitosamente")
                 Result.success(response.body()!!)
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e(TAG, "❌ Error al crear comentario: $errorMsg")
+                android.util.Log.e(TAG, "  Error al crear comentario: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ Exception: ${e.message}")
+            android.util.Log.e(TAG, "  Exception: ${e.message}")
             Result.failure(e)
         }
     }
@@ -91,15 +91,15 @@ class ComentarioRepository(
             android.util.Log.d(TAG, "Response code: ${response.code()}")
 
             if (response.isSuccessful && response.body() != null) {
-                android.util.Log.d(TAG, "✅ Respuesta creada exitosamente")
+                android.util.Log.d(TAG, "  Respuesta creada exitosamente")
                 Result.success(response.body()!!)
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e(TAG, "❌ Error al crear respuesta: $errorMsg")
+                android.util.Log.e(TAG, "  Error al crear respuesta: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ Exception: ${e.message}")
+            android.util.Log.e(TAG, "  Exception: ${e.message}")
             Result.failure(e)
         }
     }
@@ -138,15 +138,15 @@ class ComentarioRepository(
 
             if (response.isSuccessful && response.body() != null) {
                 val comentarios = response.body()!!
-                android.util.Log.d(TAG, "✅ Comentarios obtenidos: ${comentarios.size}")
+                android.util.Log.d(TAG, "  Comentarios obtenidos: ${comentarios.size}")
                 Result.success(comentarios)
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e(TAG, "❌ Error al obtener comentarios: $errorMsg")
+                android.util.Log.e(TAG, "  Error al obtener comentarios: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ Exception: ${e.message}")
+            android.util.Log.e(TAG, "  Exception: ${e.message}")
             Result.failure(e)
         }
     }
@@ -180,15 +180,15 @@ class ComentarioRepository(
 
             if (response.isSuccessful && response.body() != null) {
                 val respuestas = response.body()!!
-                android.util.Log.d(TAG, "✅ Respuestas obtenidas: ${respuestas.size}")
+                android.util.Log.d(TAG, "  Respuestas obtenidas: ${respuestas.size}")
                 Result.success(respuestas)
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e(TAG, "❌ Error al obtener respuestas: $errorMsg")
+                android.util.Log.e(TAG, "  Error al obtener respuestas: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ Exception: ${e.message}")
+            android.util.Log.e(TAG, "  Exception: ${e.message}")
             Result.failure(e)
         }
     }
@@ -215,15 +215,15 @@ class ComentarioRepository(
             android.util.Log.d(TAG, "Response code: ${response.code()}")
 
             if (response.isSuccessful && response.body() != null) {
-                android.util.Log.d(TAG, "✅ Comentario obtenido")
+                android.util.Log.d(TAG, "  Comentario obtenido")
                 Result.success(response.body()!!)
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e(TAG, "❌ Error al obtener comentario: $errorMsg")
+                android.util.Log.e(TAG, "  Error al obtener comentario: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ Exception: ${e.message}")
+            android.util.Log.e(TAG, "  Exception: ${e.message}")
             Result.failure(e)
         }
     }
@@ -263,15 +263,15 @@ class ComentarioRepository(
             android.util.Log.d(TAG, "Response code: ${response.code()}")
 
             if (response.isSuccessful && response.body() != null) {
-                android.util.Log.d(TAG, "✅ Comentario editado exitosamente")
+                android.util.Log.d(TAG, "  Comentario editado exitosamente")
                 Result.success(response.body()!!)
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e(TAG, "❌ Error al editar comentario: $errorMsg")
+                android.util.Log.e(TAG, "  Error al editar comentario: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ Exception: ${e.message}")
+            android.util.Log.e(TAG, "  Exception: ${e.message}")
             Result.failure(e)
         }
     }
@@ -302,15 +302,15 @@ class ComentarioRepository(
             android.util.Log.d(TAG, "Response code: ${response.code()}")
 
             if (response.isSuccessful) {
-                android.util.Log.d(TAG, "✅ Comentario eliminado exitosamente")
+                android.util.Log.d(TAG, "  Comentario eliminado exitosamente")
                 Result.success(true)
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e(TAG, "❌ Error al eliminar comentario: $errorMsg")
+                android.util.Log.e(TAG, "  Error al eliminar comentario: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ Exception: ${e.message}")
+            android.util.Log.e(TAG, "  Exception: ${e.message}")
             Result.failure(e)
         }
     }
@@ -383,7 +383,7 @@ class ComentarioRepository(
                         comment
                     }
 
-                    android.util.Log.d(TAG, "✅ Convertidos ${commentsConvertidos.size} comentarios con respuestas")
+                    android.util.Log.d(TAG, "  Convertidos ${commentsConvertidos.size} comentarios con respuestas")
                     Result.success(commentsConvertidos)
                 },
                 onFailure = { error ->
@@ -391,7 +391,7 @@ class ComentarioRepository(
                 }
             )
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ Exception en obtenerComentariosConvertidos: ${e.message}")
+            android.util.Log.e(TAG, "  Exception en obtenerComentariosConvertidos: ${e.message}")
             Result.failure(e)
         }
     }
@@ -497,15 +497,15 @@ class ComentarioRepository(
             android.util.Log.d(TAG, "Response code: ${response.code()}")
 
             if (response.isSuccessful && response.body() != null) {
-                android.util.Log.d(TAG, "✅ Reacción en comentario agregada exitosamente")
+                android.util.Log.d(TAG, "  Reacción en comentario agregada exitosamente")
                 Result.success(response.body()!!)
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e(TAG, "❌ Error al agregar reacción: $errorMsg")
+                android.util.Log.e(TAG, "  Error al agregar reacción: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ Exception: ${e.message}")
+            android.util.Log.e(TAG, "  Exception: ${e.message}")
             Result.failure(e)
         }
     }
@@ -536,15 +536,15 @@ class ComentarioRepository(
             android.util.Log.d(TAG, "Response code: ${response.code()}")
 
             if (response.isSuccessful) {
-                android.util.Log.d(TAG, "✅ Reacción removida exitosamente")
+                android.util.Log.d(TAG, "  Reacción removida exitosamente")
                 Result.success(true)
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e(TAG, "❌ Error al quitar reacción: $errorMsg")
+                android.util.Log.e(TAG, "  Error al quitar reacción: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ Exception: ${e.message}")
+            android.util.Log.e(TAG, "  Exception: ${e.message}")
             Result.failure(e)
         }
     }
@@ -572,15 +572,15 @@ class ComentarioRepository(
 
             if (response.isSuccessful && response.body() != null) {
                 val conteo = response.body()!!
-                android.util.Log.d(TAG, "✅ Conteo obtenido - Likes: ${conteo.likes}, Dislikes: ${conteo.dislikes}")
+                android.util.Log.d(TAG, "  Conteo obtenido - Likes: ${conteo.likes}, Dislikes: ${conteo.dislikes}")
                 Result.success(conteo)
             } else {
                 val errorMsg = parseErrorMessage(response)
-                android.util.Log.e(TAG, "❌ Error al obtener conteo: $errorMsg")
+                android.util.Log.e(TAG, "  Error al obtener conteo: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ Exception: ${e.message}")
+            android.util.Log.e(TAG, "  Exception: ${e.message}")
             Result.failure(e)
         }
     }
@@ -640,7 +640,7 @@ class ComentarioRepository(
                 }
             )
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ Exception en toggleLikeComentario: ${e.message}")
+            android.util.Log.e(TAG, "  Exception en toggleLikeComentario: ${e.message}")
             Result.failure(e)
         }
     }
@@ -692,7 +692,7 @@ class ComentarioRepository(
                 }
             )
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ Exception en toggleDislikeComentario: ${e.message}")
+            android.util.Log.e(TAG, "  Exception en toggleDislikeComentario: ${e.message}")
             Result.failure(e)
         }
     }

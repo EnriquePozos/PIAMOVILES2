@@ -56,7 +56,7 @@ class MyApplication : Application() {
             syncRequest
         )
 
-        Log.d(TAG, "✅ Sincronización periódica configurada (cada 30 min)")
+        Log.d(TAG, "  Sincronización periódica configurada (cada 30 min)")
     }
 
     /**

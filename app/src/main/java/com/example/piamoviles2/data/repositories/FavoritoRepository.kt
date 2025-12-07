@@ -266,7 +266,7 @@ class FavoritoRepository(
                     }
                 },
                 onFailure = { error ->
-                    // ✅ CAMBIO PRINCIPAL: Manejar 404 como "no es favorito"
+                    //   CAMBIO PRINCIPAL: Manejar 404 como "no es favorito"
                     if (error.message?.contains("404") == true) {
                         Log.d(TAG, "404 en toggle - interpretando como no es favorito, procederemos a agregar")
                         // No está en favoritos (404), proceder a agregarlo

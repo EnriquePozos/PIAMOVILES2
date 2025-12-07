@@ -168,7 +168,7 @@ class PublicacionRepository(
 
                     mapOf(
                         "tipo" to getMediaTypeForFile(originalFile),
-                        "ruta" to destFile.absolutePath,  // ✅ RUTA PERSISTENTE
+                        "ruta" to destFile.absolutePath,  //   RUTA PERSISTENTE
                         "nombre" to fileName
                     )
                 } catch (e: Exception) {
@@ -278,14 +278,14 @@ class PublicacionRepository(
                                     Log.d(TAG, "Archivo $i - Legible?: ${file.canRead()}")
 
                                     if (file.exists()) {
-                                        Log.d(TAG, "✅ Archivo $i válido: ${file.absolutePath}")
+                                        Log.d(TAG, "  Archivo $i válido: ${file.absolutePath}")
                                         file
                                     } else {
-                                        Log.w(TAG, "❌ Archivo $i no existe: $ruta")
+                                        Log.w(TAG, "  Archivo $i no existe: $ruta")
                                         null
                                     }
                                 } catch (e: Exception) {
-                                    Log.e(TAG, "❌ Error al procesar objeto $i: ${e.message}", e)
+                                    Log.e(TAG, "  Error al procesar objeto $i: ${e.message}", e)
                                     null
                                 }
                             }
@@ -297,7 +297,7 @@ class PublicacionRepository(
 
                             archivosList
                         } catch (jsonException: Exception) {
-                            Log.e(TAG, "❌ Error al parsear JSON: ${jsonException.message}", jsonException)
+                            Log.e(TAG, "  Error al parsear JSON: ${jsonException.message}", jsonException)
                             emptyList<File>()
                         }
                     } ?: run {
@@ -313,7 +313,7 @@ class PublicacionRepository(
                         Log.w(TAG, "⚠️ ADVERTENCIA: No hay imágenes para sincronizar")
                         Log.w(TAG, "⚠️ La publicación se sincronizará SIN multimedia")
                     } else {
-                        Log.d(TAG, "✅ Archivos listos para enviar:")
+                        Log.d(TAG, "  Archivos listos para enviar:")
                         imagenes.forEachIndexed { index, file ->
                             Log.d(TAG, "  [$index] ${file.name} (${file.length()} bytes)")
                         }
@@ -648,7 +648,7 @@ class PublicacionRepository(
 
             db.publicacionLocalDao().actualizar(publicacionActualizada)
 
-            android.util.Log.d(TAG, "✅ Borrador actualizado en SQLite")
+            android.util.Log.d(TAG, "  Borrador actualizado en SQLite")
 
             // 4. Crear respuesta simulada
             val fechaActual = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
@@ -672,7 +672,7 @@ class PublicacionRepository(
             Result.success(publicacionDetalle)
 
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ Error al actualizar borrador SQLite", e)
+            android.util.Log.e(TAG, "  Error al actualizar borrador SQLite", e)
             Result.failure(e)
         }
     }
@@ -717,9 +717,9 @@ class PublicacionRepository(
             val publicacion = db.publicacionLocalDao().obtenerPorId(localId)
                 ?: return Result.failure(Exception("Publicación no encontrada"))
 
-            // 2. ✅ VALIDACIÓN: Solo eliminar si NO está sincronizada
+            // 2.   VALIDACIÓN: Solo eliminar si NO está sincronizada
             if (publicacion.sincronizado && !publicacion.apiId.isNullOrEmpty()) {
-                Log.e(TAG, "❌ No se puede eliminar: publicación ya sincronizada")
+                Log.e(TAG, "  No se puede eliminar: publicación ya sincronizada")
                 return Result.failure(
                     Exception("No puedes eliminar un borrador sincronizado sin conexión. Conéctate a internet.")
                 )
@@ -728,11 +728,11 @@ class PublicacionRepository(
             // 3. Eliminar de la base de datos
             db.publicacionLocalDao().eliminar(publicacion)
 
-            Log.d(TAG, "✅ Publicación local eliminada: ${publicacion.titulo}")
+            Log.d(TAG, "  Publicación local eliminada: ${publicacion.titulo}")
             Result.success("Borrador eliminado correctamente")
 
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Error al eliminar publicación offline", e)
+            Log.e(TAG, "  Error al eliminar publicación offline", e)
             Result.failure(e)
         }
     }

@@ -146,7 +146,7 @@ class PostAdapter(
             }
 
             binding.ivPostImage.setImageResource(placeholderResId)
-            android.util.Log.d(TAG, "✅ Placeholder aplicado: $imageUrl -> $placeholderResId")
+            android.util.Log.d(TAG, "  Placeholder aplicado: $imageUrl -> $placeholderResId")
         }
     }
 

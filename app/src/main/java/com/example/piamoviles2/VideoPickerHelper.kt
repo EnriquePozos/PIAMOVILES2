@@ -167,7 +167,7 @@ class VideoPickerHelper(
                     sizeBytes = validation.sizeBytes
                 )
 
-                android.util.Log.d(TAG, "✅ Video procesado exitosamente")
+                android.util.Log.d(TAG, "  Video procesado exitosamente")
                 android.util.Log.d(TAG, "Archivo: ${videoFile.name}, Tamaño: ${videoFile.length()} bytes")
 
                 onVideoSelected(result)
@@ -177,7 +177,7 @@ class VideoPickerHelper(
             }
 
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "❌ Error al procesar video", e)
+            android.util.Log.e(TAG, "  Error al procesar video", e)
             android.widget.Toast.makeText(
                 activity,
                 "Error al procesar video: ${e.message}",
@@ -266,7 +266,7 @@ class VideoPickerHelper(
             )
 
             if (thumbnail != null) {
-                android.util.Log.d(TAG, "✅ Thumbnail generado: ${thumbnail.width}x${thumbnail.height}")
+                android.util.Log.d(TAG, "  Thumbnail generado: ${thumbnail.width}x${thumbnail.height}")
             } else {
                 android.util.Log.w(TAG, "No se pudo generar thumbnail")
             }

@@ -56,7 +56,7 @@ class MediaCarouselAdapter(
                 .centerCrop()
                 .into(ivMedia)
 
-            android.util.Log.d(TAG, "✅ Imagen cargada: ${media.url}")
+            android.util.Log.d(TAG, "  Imagen cargada: ${media.url}")
         }
 
         private fun bindVideo(media: MultimediaResponse) {
@@ -86,7 +86,7 @@ class MediaCarouselAdapter(
                 onVideoClick(media.url)
             }
 
-            android.util.Log.d(TAG, "✅ Video configurado: ${media.url}")
+            android.util.Log.d(TAG, "  Video configurado: ${media.url}")
         }
     }
 

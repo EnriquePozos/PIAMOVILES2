@@ -18,11 +18,16 @@ import androidx.activity.OnBackPressedCallback
 import com.example.piamoviles2.data.repositories.PublicacionRepository
 import kotlinx.coroutines.*
 
+// Manejar si esta online o no
+import com.example.piamoviles2.utils.NetworkMonitor
+
 class FeedActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityFeedBinding
     private lateinit var postAdapter: PostAdapter
     private lateinit var sessionManager: SessionManager
+
+    private lateinit var networkMonitor: NetworkMonitor
 
     // ============================================
     // VARIABLES PARA API INTEGRATION
@@ -41,6 +46,7 @@ class FeedActivity : AppCompatActivity() {
 
         binding = ActivityFeedBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        networkMonitor = NetworkMonitor(this)
 
         // ============================================
         // SETUP INICIAL
@@ -170,6 +176,7 @@ class FeedActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
+
         postAdapter = PostAdapter { post ->
             // Navegar a detalle de la publicación
             android.util.Log.d(TAG, "Navegando a detalle: ${post.title}")
@@ -179,6 +186,11 @@ class FeedActivity : AppCompatActivity() {
             intent.putExtra(PostDetailActivity.EXTRA_POST_ID, post.id)
             if (!post.apiId.isNullOrEmpty()) {
                 intent.putExtra(PostDetailActivity.EXTRA_POST_API_ID, post.apiId)
+            }
+
+            if (!networkMonitor.isOnline()) {
+                Toast.makeText(this, "Conectividad no disponible, conectatet a una red", Toast.LENGTH_SHORT).show()
+                return@PostAdapter
             }
             startActivity(intent)
         }

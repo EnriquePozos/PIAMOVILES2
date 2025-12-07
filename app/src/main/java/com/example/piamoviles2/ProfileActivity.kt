@@ -84,6 +84,10 @@ class ProfileActivity : AppCompatActivity() {
             val intent = Intent(this, PostDetailActivity::class.java)
             intent.putExtra(PostDetailActivity.EXTRA_POST_API_ID, post.apiId)
             //intent.putExtra(PostDetailActivity.EXTRA_POST_ID, post.id)
+            if (!networkMonitor.isOnline()) {
+                Toast.makeText(this, "Conectividad no disponible, conectatet a una red", Toast.LENGTH_SHORT).show()
+                return@PostAdapter
+            }
             startActivity(intent)
         }
 
@@ -115,7 +119,7 @@ class ProfileActivity : AppCompatActivity() {
             android.util.Log.d(TAG, "Modo OFFLINE - Botones de internet deshabilitados")
 
         } else {
-            // ✅ MODO ONLINE - Habilitar todas las funciones
+            //   MODO ONLINE - Habilitar todas las funciones
 
             binding.btnModifyProfile.setOnClickListener {
                 val intent = Intent(this, EditProfileActivity::class.java)
@@ -134,13 +138,13 @@ class ProfileActivity : AppCompatActivity() {
             android.util.Log.d(TAG, "Modo ONLINE - Todos los botones habilitados")
         }
 
-        // ✅ MANTENER HABILITADO: Agregar receta
+        //   MANTENER HABILITADO: Agregar receta
         binding.btnAddRecipe.setOnClickListener {
             val intent = Intent(this, CreatePostActivity::class.java)
             startActivity(intent)
         }
 
-        // ✅ MANTENER HABILITADO: Ver borradores
+        //   MANTENER HABILITADO: Ver borradores
         binding.btnViewDrafts.setOnClickListener {
             val intent = Intent(this, DraftsActivity::class.java)
             startActivity(intent)

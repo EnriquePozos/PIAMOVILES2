@@ -13,7 +13,7 @@ import com.example.piamoviles2.utils.NetworkMonitor
 
 
 // ============================================
-// ✅ IMPORTS PARA API INTEGRATION
+//   IMPORTS PARA API INTEGRATION
 // ============================================
 import com.example.piamoviles2.data.repositories.PublicacionRepository
 import com.example.piamoviles2.utils.SessionManager
@@ -28,7 +28,7 @@ class DraftsActivity : AppCompatActivity() {
     private lateinit var networkMonitor: NetworkMonitor
 
     // ============================================
-    // ✅ VARIABLES PARA API INTEGRATION
+    //   VARIABLES PARA API INTEGRATION
     // ============================================
     private lateinit var sessionManager: SessionManager
     private lateinit var publicacionRepository: PublicacionRepository
@@ -41,7 +41,7 @@ class DraftsActivity : AppCompatActivity() {
         binding = ActivityDraftsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // ✅ INICIALIZAR API COMPONENTS
+        //   INICIALIZAR API COMPONENTS
         sessionManager = SessionManager(this)
         publicacionRepository = PublicacionRepository(this)
         networkMonitor = NetworkMonitor(this)
@@ -80,14 +80,14 @@ class DraftsActivity : AppCompatActivity() {
     }
 
     // ============================================
-    // ✅ MÉTODO REEMPLAZADO CON API REAL
+    //   MÉTODO REEMPLAZADO CON API REAL
     // ============================================
     private fun loadDraftPosts() {
         val currentUser = sessionManager.getCurrentUser()
         val token = sessionManager.getAccessToken()
 
         if (currentUser == null || token == null) {
-            android.util.Log.e(TAG, "❌ Error: Usuario o token no válido")
+            android.util.Log.e(TAG, "  Error: Usuario o token no válido")
             Toast.makeText(this, "Error: Sesión no válida", Toast.LENGTH_SHORT).show()
             return
         }
@@ -104,7 +104,7 @@ class DraftsActivity : AppCompatActivity() {
                     // CAMBIO: Usar método que detecta automáticamente online/offline
                     publicacionRepository.obtenerPublicacionesUsuarioSegunConectividad(
                         idAutor = currentUser.id,
-                        incluirBorradores = true, // ✅ TRUE para obtener borradores
+                        incluirBorradores = true, //   TRUE para obtener borradores
                         token = token
                     )
                 }
@@ -113,7 +113,7 @@ class DraftsActivity : AppCompatActivity() {
                     onSuccess = { posts ->
                         // Filtrar solo borradores (por seguridad adicional)
                         val draftsList = posts.filter { it.isDraft }
-                        android.util.Log.d(TAG, "✅ Borradores cargados: ${draftsList.size}")
+                        android.util.Log.d(TAG, "  Borradores cargados: ${draftsList.size}")
 
                         draftPosts.clear()
                         draftPosts.addAll(draftsList)
@@ -127,7 +127,7 @@ class DraftsActivity : AppCompatActivity() {
                         }
                     },
                     onFailure = { error ->
-                        android.util.Log.e(TAG, "❌ Error al cargar borradores", error)
+                        android.util.Log.e(TAG, "  Error al cargar borradores", error)
                         // CAMBIO: Manejo simplificado ya que el método automático maneja online/offline
                         draftPosts.clear()
                         updateUI()
@@ -136,7 +136,7 @@ class DraftsActivity : AppCompatActivity() {
                 )
 
             } catch (e: Exception) {
-                android.util.Log.e(TAG, "❌ Exception al cargar borradores", e)
+                android.util.Log.e(TAG, "  Exception al cargar borradores", e)
                 Toast.makeText(this@DraftsActivity, "Error inesperado: ${e.message}", Toast.LENGTH_LONG).show()
             } finally {
                 setLoadingDrafts(false)
@@ -145,7 +145,7 @@ class DraftsActivity : AppCompatActivity() {
     }
 
     // ============================================
-    // ✅ NUEVOS MÉTODOS DE SOPORTE PARA API
+    //   NUEVOS MÉTODOS DE SOPORTE PARA API
     // ============================================
     private fun setLoadingDrafts(loading: Boolean) {
         isLoading = loading
@@ -162,7 +162,7 @@ class DraftsActivity : AppCompatActivity() {
     }
 
     // ============================================
-    // ✅ MÉTODO UPDATEUI MEJORADO
+    //   MÉTODO UPDATEUI MEJORADO
     // ============================================
     private fun updateUI() {
         android.util.Log.d(TAG, "Actualizando UI - Borradores: ${draftPosts.size}")
@@ -178,13 +178,13 @@ class DraftsActivity : AppCompatActivity() {
             binding.layoutEmptyDrafts.visibility = View.GONE
             android.util.Log.d(TAG, "Mostrando ${draftPosts.size} borradores")
 
-            // ✅ LOGS PARA DEBUGGING:
+            //   LOGS PARA DEBUGGING:
             draftPosts.forEachIndexed { index, draft ->
                 android.util.Log.d(TAG, "Borrador $index: ${draft.title}")
             }
         }
 
-        // ✅ LOG ANTES DE submitList:
+        //   LOG ANTES DE submitList:
         android.util.Log.d(TAG, "Llamando submitList con ${draftPosts.size} borradores")
         draftAdapter.submitList(draftPosts.toList())
 
@@ -195,7 +195,7 @@ class DraftsActivity : AppCompatActivity() {
     }
 
     // ============================================
-    // ✅ MÉTODOS EXISTENTES MANTENIDOS
+    //   MÉTODOS EXISTENTES MANTENIDOS
     // ============================================
     private fun editDraft(draft: Post) {
         // CONECTADO A CreatePostActivity con ID del borrador
@@ -211,7 +211,7 @@ class DraftsActivity : AppCompatActivity() {
     }
 
     private fun showDeleteDraftDialog(draft: Post) {
-        // 🆕 VERIFICAR SI PUEDE ELIMINARSE OFFLINE
+        //   VERIFICAR SI PUEDE ELIMINARSE OFFLINE
         if (!networkMonitor.isOnline() && draft.isSynced) {
             // Mostrar mensaje informativo en lugar de diálogo de confirmación
             AlertDialog.Builder(this)
@@ -256,7 +256,7 @@ class DraftsActivity : AppCompatActivity() {
 
                         result.fold(
                             onSuccess = {
-                                android.util.Log.d(TAG, "✅ Borrador eliminado de API")
+                                android.util.Log.d(TAG, "  Borrador eliminado de API")
 
                                 // También eliminar de SQLite si existe localmente
                                 eliminarDeSQLiteSiExiste(draft.apiId)
@@ -271,7 +271,7 @@ class DraftsActivity : AppCompatActivity() {
                                 ).show()
                             },
                             onFailure = { error ->
-                                android.util.Log.e(TAG, "❌ Error al eliminar de API", error)
+                                android.util.Log.e(TAG, "  Error al eliminar de API", error)
                                 Toast.makeText(
                                     this@DraftsActivity,
                                     "Error al eliminar: ${error.message}",
@@ -291,7 +291,7 @@ class DraftsActivity : AppCompatActivity() {
 
                         result.fold(
                             onSuccess = {
-                                android.util.Log.d(TAG, "✅ Borrador local eliminado")
+                                android.util.Log.d(TAG, "  Borrador local eliminado")
 
                                 // Actualizar UI
                                 draftPosts.remove(draft)
@@ -303,7 +303,7 @@ class DraftsActivity : AppCompatActivity() {
                                 ).show()
                             },
                             onFailure = { error ->
-                                android.util.Log.e(TAG, "❌ Error al eliminar de SQLite", error)
+                                android.util.Log.e(TAG, "  Error al eliminar de SQLite", error)
                                 Toast.makeText(
                                     this@DraftsActivity,
                                     "Error al eliminar: ${error.message}",
@@ -330,7 +330,7 @@ class DraftsActivity : AppCompatActivity() {
                 Toast.makeText(this@DraftsActivity, "Borrador \"${draft.title}\" eliminado", Toast.LENGTH_SHORT).show()
 
             } catch (e: Exception) {
-                android.util.Log.e(TAG, "❌ Excepción al eliminar borrador", e)
+                android.util.Log.e(TAG, "  Excepción al eliminar borrador", e)
                 Toast.makeText(this@DraftsActivity, "Error inesperado al eliminar: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
@@ -342,7 +342,7 @@ class DraftsActivity : AppCompatActivity() {
                 val db = publicacionRepository.database
                 db?.publicacionLocalDao()?.obtenerPorApiId(apiId)?.let { publicacion ->
                     db.publicacionLocalDao().eliminar(publicacion)
-                    android.util.Log.d(TAG, "✅ También eliminado de SQLite local")
+                    android.util.Log.d(TAG, "  También eliminado de SQLite local")
                 }
             }
         } catch (e: Exception) {
