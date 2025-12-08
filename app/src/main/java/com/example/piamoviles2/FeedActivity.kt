@@ -424,7 +424,6 @@ class FeedActivity : AppCompatActivity() {
         // Recargar datos cuando regrese a la pantalla
         // (ej: después de crear una nueva publicación)
         android.util.Log.d(TAG, "onResume - Recargando feed")
-        loadPosts()
     }
 
     override fun onDestroy() {

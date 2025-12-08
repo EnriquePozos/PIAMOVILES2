@@ -14,6 +14,7 @@ object ImageUtils {
 
     /**
      * Carga imagen circular de perfil con Glide + CircleImageView
+     * FIX: Previene "Cannot pool recycled bitmap" error
      */
     fun loadProfileImage(
         context: Context,
@@ -23,21 +24,38 @@ object ImageUtils {
     ) {
         android.util.Log.d(TAG, "Cargando imagen de perfil: $imageUrl")
 
-        val glideRequest = Glide.with(context)
+        // ============================================
+        // FIX: Usar SIEMPRE applicationContext
+        // ============================================
+        val appContext = context.applicationContext
+
+        // Limpiar ImageView antes de cargar
+        try {
+            Glide.with(appContext).clear(circleImageView)
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "No se pudo limpiar ImageView: ${e.message}")
+        }
+
+        // Configuración robusta de Glide
+        val glideRequest = Glide.with(appContext)
             .load(if (imageUrl.isNullOrEmpty()) null else imageUrl)
-            .diskCacheStrategy(DiskCacheStrategy.ALL)
+            .diskCacheStrategy(DiskCacheStrategy.AUTOMATIC)
+            .dontAnimate()
+            .skipMemoryCache(false)
 
         if (showPlaceholder) {
             glideRequest
-                .placeholder(R.mipmap.ic_foto_perfil_round) // Mientras carga
-                .error(R.mipmap.ic_foto_perfil_round) // Si hay error
+                .placeholder(R.mipmap.ic_foto_perfil_round)
+                .error(R.mipmap.ic_foto_perfil_round)
         }
 
         glideRequest.into(circleImageView)
+        android.util.Log.d(TAG, "✅ Imagen de perfil cargada")
     }
 
     /**
      * Carga imagen de publicación (recetas) con Glide
+     * FIX: Previene "Cannot pool recycled bitmap" error
      */
     fun loadPostImage(
         context: Context,
@@ -47,22 +65,37 @@ object ImageUtils {
     ) {
         android.util.Log.d(TAG, "Cargando imagen de post: $imageUrl")
 
-        val glideRequest = Glide.with(context)
+        // ============================================
+        // FIX: Usar SIEMPRE applicationContext
+        // ============================================
+        val appContext = context.applicationContext
+
+        // Limpiar ImageView antes de cargar
+        try {
+            Glide.with(appContext).clear(imageView)
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "No se pudo limpiar ImageView: ${e.message}")
+        }
+
+        val glideRequest = Glide.with(appContext)
             .load(if (imageUrl.isNullOrEmpty()) null else imageUrl)
-            .diskCacheStrategy(DiskCacheStrategy.ALL)
-            .centerCrop() // ✅ Para que se vea bien en las cards
+            .diskCacheStrategy(DiskCacheStrategy.AUTOMATIC)
+            .dontAnimate()
+            .centerCrop()
 
         if (showPlaceholder) {
             glideRequest
-                .placeholder(R.mipmap.ic_launcher) // Mientras carga
-                .error(R.mipmap.ic_launcher) // Si hay error o no hay imagen
+                .placeholder(R.mipmap.ic_launcher)
+                .error(R.mipmap.ic_launcher)
         }
 
         glideRequest.into(imageView)
+        android.util.Log.d(TAG, "✅ Imagen de post cargada")
     }
 
     /**
      * Carga imagen normal (genérica) con Glide
+     * FIX: Previene "Cannot pool recycled bitmap" error
      */
     fun loadImage(
         context: Context,
@@ -72,12 +105,27 @@ object ImageUtils {
     ) {
         android.util.Log.d(TAG, "Cargando imagen genérica: $imageUrl")
 
-        Glide.with(context)
+        // ============================================
+        // FIX: Usar SIEMPRE applicationContext
+        // ============================================
+        val appContext = context.applicationContext
+
+        // Limpiar ImageView antes de cargar
+        try {
+            Glide.with(appContext).clear(imageView)
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "No se pudo limpiar ImageView: ${e.message}")
+        }
+
+        Glide.with(appContext)
             .load(if (imageUrl.isNullOrEmpty()) null else imageUrl)
             .placeholder(placeholderResId)
             .error(placeholderResId)
-            .diskCacheStrategy(DiskCacheStrategy.ALL)
+            .diskCacheStrategy(DiskCacheStrategy.AUTOMATIC)
+            .dontAnimate()
             .into(imageView)
+
+        android.util.Log.d(TAG, "✅ Imagen genérica cargada")
     }
 
     /**
@@ -85,7 +133,7 @@ object ImageUtils {
      */
     fun preloadImage(context: Context, imageUrl: String?) {
         if (!imageUrl.isNullOrEmpty()) {
-            Glide.with(context)
+            Glide.with(context.applicationContext)
                 .load(imageUrl)
                 .preload()
         }
@@ -96,9 +144,10 @@ object ImageUtils {
      */
     fun clearCache(context: Context) {
         android.util.Log.d(TAG, "Limpiando caché de imágenes")
-        Glide.get(context).clearMemory()
+        val appContext = context.applicationContext
+        Glide.get(appContext).clearMemory()
         Thread {
-            Glide.get(context).clearDiskCache()
+            Glide.get(appContext).clearDiskCache()
         }.start()
     }
 
@@ -113,7 +162,7 @@ object ImageUtils {
     }
 
     /**
-     * NUEVO: Carga imagen desde archivo local (modo offline)
+     * Carga imagen desde archivo local (modo offline)
      * Maneja archivos del sistema de archivos con prefijo "file://"
      */
     fun loadLocalImage(
@@ -122,34 +171,42 @@ object ImageUtils {
         imageView: ImageView,
         showPlaceholder: Boolean = true
     ) {
+        android.util.Log.d(TAG, "Cargando imagen local: $localPath")
 
+        // ============================================
+        // FIX: Usar SIEMPRE applicationContext
+        // ============================================
+        val appContext = context.applicationContext
 
         try {
-            // Remover prefijo "file://" si existe para obtener ruta limpia
+            // Limpiar ImageView antes de cargar
+            try {
+                Glide.with(appContext).clear(imageView)
+            } catch (e: Exception) {
+                android.util.Log.w(TAG, "No se pudo limpiar ImageView: ${e.message}")
+            }
+
+            // Remover prefijo "file://" si existe
             val cleanPath = localPath.removePrefix("file://")
             val file = java.io.File(cleanPath)
 
-
-
-            val glideRequest = Glide.with(context)
-                .load(file) // Glide puede cargar directamente desde File
-                .diskCacheStrategy(DiskCacheStrategy.NONE) // No cachear archivos locales
-                .centerCrop() // Para que se vea bien en las cards
+            val glideRequest = Glide.with(appContext)
+                .load(file)
+                .diskCacheStrategy(DiskCacheStrategy.NONE)
+                .dontAnimate()
+                .centerCrop()
 
             if (showPlaceholder) {
                 glideRequest
-                    .placeholder(R.mipmap.ic_launcher) // Mientras carga
-                    .error(R.mipmap.ic_launcher) // Si hay error al cargar archivo
+                    .placeholder(R.mipmap.ic_launcher)
+                    .error(R.mipmap.ic_launcher)
             }
 
             glideRequest.into(imageView)
-
-
+            android.util.Log.d(TAG, "✅ Imagen local cargada")
 
         } catch (e: Exception) {
-
-
-            // Fallback en caso de error
+            android.util.Log.e(TAG, "❌ Error cargando imagen local: ${e.message}")
             if (showPlaceholder) {
                 imageView.setImageResource(R.mipmap.ic_launcher)
             }
@@ -157,7 +214,7 @@ object ImageUtils {
     }
 
     /**
-     * NUEVO: Verificar si es una ruta de archivo local
+     * Verificar si es una ruta de archivo local
      */
     fun isLocalImagePath(imagePath: String?): Boolean {
         return !imagePath.isNullOrEmpty() &&
