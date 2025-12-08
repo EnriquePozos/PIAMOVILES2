@@ -380,22 +380,43 @@ class CreatePostActivity : AppCompatActivity() {
     private fun loadImageFromUrl(url: String) {
         android.util.Log.d(TAG, "Cargando IMAGEN desde: $url")
 
-        Glide.with(this)
+        // ============================================
+        // FIX: Usar applicationContext para evitar leaks
+        // ============================================
+        Glide.with(applicationContext)
             .asBitmap()
             .load(url)
             .into(object : CustomTarget<Bitmap>() {
                 override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
-                    android.util.Log.d(TAG, "Imagen cargada exitosamente")
+                    android.util.Log.d(TAG, "✅ Imagen cargada exitosamente")
 
-                    // CAMBIO: Marcar como persistente porque viene de la API/BD
-                    val item = MultimediaItem.crearImagen(resource, isPersistent = true)
+                    // ============================================
+                    // FIX: COPIAR el bitmap antes de usarlo
+                    // El bitmap original es gestionado por Glide y puede ser reciclado
+                    // ============================================
+                    val bitmapCopy = try {
+                        resource.copy(resource.config ?: Bitmap.Config.ARGB_8888, false)
+                    } catch (e: Exception) {
+                        android.util.Log.e(TAG, "❌ Error al copiar bitmap: ${e.message}")
+                        null
+                    }
+
+                    if (bitmapCopy == null) {
+                        android.util.Log.e(TAG, "❌ No se pudo crear copia del bitmap")
+                        return
+                    }
+
+                    // Crear item con la COPIA del bitmap
+                    val item = MultimediaItem.crearImagen(bitmapCopy, isPersistent = true)
 
                     // Convertir a archivo
-                    convertBitmapToFileForItem(resource, item)
+                    convertBitmapToFileForItem(bitmapCopy, item)
 
                     // Agregar al adapter
                     multimediaAdapter.addItem(item)
                     updateEmptyState()
+
+                    android.util.Log.d(TAG, "✅ Imagen procesada y agregada")
                 }
 
                 override fun onLoadCleared(placeholder: android.graphics.drawable.Drawable?) {
@@ -403,7 +424,7 @@ class CreatePostActivity : AppCompatActivity() {
                 }
 
                 override fun onLoadFailed(errorDrawable: android.graphics.drawable.Drawable?) {
-                    android.util.Log.e(TAG, "Error al cargar imagen desde $url")
+                    android.util.Log.e(TAG, "❌ Error al cargar imagen desde $url")
                 }
             })
     }
@@ -414,18 +435,30 @@ class CreatePostActivity : AppCompatActivity() {
     private fun loadVideoFromUrl(url: String) {
         android.util.Log.d(TAG, "Cargando VIDEO desde: $url")
 
-        // Generar thumbnail del video usando Glide
-        Glide.with(this)
+        // ============================================
+        // FIX: Usar applicationContext para evitar leaks
+        // ============================================
+        Glide.with(applicationContext)
             .asBitmap()
             .load(url)
             .into(object : CustomTarget<Bitmap>() {
                 override fun onResourceReady(thumbnail: Bitmap, transition: Transition<in Bitmap>?) {
-                    android.util.Log.d(TAG, "Thumbnail de video generado")
+                    android.util.Log.d(TAG, "✅ Thumbnail de video generado")
 
-                    // CAMBIO: Marcar como persistente porque viene de la API/BD
+                    // ============================================
+                    // FIX: COPIAR el thumbnail antes de usarlo
+                    // ============================================
+                    val thumbnailCopy = try {
+                        thumbnail.copy(thumbnail.config ?: Bitmap.Config.ARGB_8888, false)
+                    } catch (e: Exception) {
+                        android.util.Log.e(TAG, "❌ Error al copiar thumbnail: ${e.message}")
+                        null
+                    }
+
+                    // Crear item con thumbnail (puede ser null si falló la copia)
                     val item = MultimediaItem.crearVideo(
                         uri = android.net.Uri.parse(url),
-                        thumbnail = thumbnail,
+                        thumbnail = thumbnailCopy,
                         isPersistent = true
                     )
 
@@ -438,9 +471,8 @@ class CreatePostActivity : AppCompatActivity() {
                 }
 
                 override fun onLoadFailed(errorDrawable: android.graphics.drawable.Drawable?) {
-                    android.util.Log.e(TAG, "Error al cargar thumbnail de video desde $url")
+                    android.util.Log.e(TAG, "❌ Error al cargar thumbnail de video desde $url")
 
-                    // CAMBIO: Marcar como persistente
                     val item = MultimediaItem.crearVideo(
                         uri = android.net.Uri.parse(url),
                         thumbnail = null,
